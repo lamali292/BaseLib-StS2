@@ -5,6 +5,7 @@
 .vs/
 publish/
 bin/
+build/BaseLib.pck
 .editorconfig
 *.uid
 *.user
