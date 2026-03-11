@@ -20,11 +20,21 @@ public abstract class CustomAncientModel : AncientEventModel, ICustomModel
     }
 
     /// <summary>
-    /// Suggested to check act.ActNumber == 2 or 3
+    /// Suggested to check act.ActNumber == 2 or 3.
+    ///
+    /// If you are overriding ShouldForceSpawn, you should override this and return false.
     /// </summary>
     /// <param name="act"></param>
     /// <returns></returns>
     public virtual bool IsValidForAct(ActModel act) => true;
+    
+    /// <summary>
+    /// Suggested to leave this set to false unless you want to force a specific ancient to spawn during map generation. Messing with this can cause mod conflicts, please only use if it is 100% necessary for your mod to function.
+    /// </summary>
+    /// <param name="act"></param>
+    /// <param name="rngChosenAncient">The ancient that will have been chosen by the games rng.</param>
+    /// <returns></returns>
+    public virtual bool ShouldForceSpawn(ActModel act, AncientEventModel? rngChosenAncient) => false;
     
     protected abstract OptionPools MakeOptionPools { get; }
 

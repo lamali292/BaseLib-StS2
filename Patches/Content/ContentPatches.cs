@@ -4,6 +4,7 @@ using BaseLib.Utils;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Rooms;
 
 namespace BaseLib.Patches.Content;
 
@@ -134,6 +135,22 @@ class ModelDbSharedPotionPoolsPatch
     }
 }
 
+[HarmonyPatch(typeof(ActModel), nameof(ActModel.GenerateRooms))]
+class ActModelGenerateRoomsPatch
+{
+    [HarmonyPostfix]
+    static void ForceAncientToSpawn(ActModel __instance)
+    {
+        var rooms = Traverse.Create(__instance).Field<RoomSet>("_rooms").Value;
+        var rngChosenAncient = rooms.Ancient;
+        var ancientToSpawn = CustomContentDictionary.CustomAncients.Find(a => a.ShouldForceSpawn(__instance, rngChosenAncient));
+
+        if (ancientToSpawn != null)
+        {
+            rooms.Ancient = ancientToSpawn;
+        }
+    }
+}
 /*
 class CardPoolPatch
 {
