@@ -4,12 +4,17 @@ namespace BaseLib.Config;
 
 internal class BaseLibConfig : SimpleModConfig
 {
-    public static bool Test { get; set; } = true;
-
+    [ConfigSection("ExampleSectionOne")]
     public static CardKeyword Keyword { get; set; } = CardKeyword.None;
-    /*public static bool One { get; set; } = true;
-    public static bool Two { get; set; } = true;
+    public static bool Test { get; set; } = true;
+    public static bool AnotherWithMultipleWords { get; set; } = false;
+    public static bool More { get; set; } = false;
+
+    [ConfigSection("Example Section Two")]
+    public static bool One { get; set; } = true;
+    public static bool Two { get; set; } = false;
     public static bool Three { get; set; } = true;
+    /*
     public static bool Testing { get; set; } = true;
     public static bool A { get; set; } = true;
     public static bool B { get; set; } = true;

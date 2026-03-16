@@ -16,33 +16,58 @@ public class SimpleModConfig : ModConfig
         optionContainer.AddChild(options);
 
         Type? t = null;
-        Control? current = null;
+        Control? currentSetting = null;
+        string? currentSection = null;
+
         try
         {
-            foreach (var property in ConfigProperties)
+            var properties = ConfigProperties.ToArray();
+            for (var i = 0; i < properties.Length; i++)
             {
+                var property = properties[i];
+                var nextProperty = i < properties.Length - 1 ? properties[i + 1] : null;
+
+                // Create a section header if this property starts a new section
+                var sectionName = property.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+                if (sectionName != null && sectionName != currentSection)
+                {
+                    currentSection = sectionName;
+                    options.AddChild(CreateSectionLabel(currentSection));
+                }
+
+                // Create the option control
                 t = property.PropertyType;
-                var previous = current;
-                //Special case
+                var previousSetting = currentSetting;
                 if (t.IsEnum)
                 {
-                    current = Generators[typeof(Enum)](this, options, property);
+                    currentSetting = Generators[typeof(Enum)](this, options, property);
                 }
                 else
                 {
-                    current = Generators[t](this, options, property);
+                    currentSetting = Generators[t](this, options, property);
                 }
-                
-                if (previous == null) continue;
-                
-                if (current.FocusNeighborBottom == null) MainFile.Logger.Info("NEIGHBOR DEFAULT NULL");
-                else MainFile.Logger.Info($"NEIGHBOR DEFAULT: {current.FocusNeighborBottom}");
-                NodePath path = current.GetPathTo(previous);
-                current.FocusNeighborLeft ??= path;
-                current.FocusNeighborTop ??= path;
-                path = previous.GetPathTo(current);
-                previous.FocusNeighborRight ??= path;
-                previous.FocusNeighborBottom ??= path;
+
+                // Set up focus handling
+                if (previousSetting != null)
+                {
+                    if (currentSetting.FocusNeighborBottom == null) MainFile.Logger.Info("NEIGHBOR DEFAULT NULL");
+                    // else MainFile.Logger.Info($"NEIGHBOR DEFAULT: {current.FocusNeighborBottom}");
+
+                    NodePath path = currentSetting.GetPathTo(previousSetting);
+                    currentSetting.FocusNeighborLeft ??= path;
+                    currentSetting.FocusNeighborTop ??= path;
+                    path = previousSetting.GetPathTo(currentSetting);
+                    previousSetting.FocusNeighborRight ??= path;
+                    previousSetting.FocusNeighborBottom ??= path;
+                }
+
+                // Add a divider unless the next property starts a new section (or there is no next)
+                var nextSectionName = nextProperty?.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+                var nextIsSameSection = nextSectionName == null || nextSectionName == currentSection;
+                if (nextProperty != null && nextIsSameSection)
+                {
+                    options.AddChild(CreateDivider());
+                }
             }
         }
         catch (KeyNotFoundException)

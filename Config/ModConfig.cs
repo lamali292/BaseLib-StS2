@@ -19,9 +19,6 @@ namespace BaseLib.Config;
 public abstract partial class ModConfig
 {
     private const string SettingsTheme = "res://themes/settings_screen_line_header.tres";
-    private static readonly Font KreonNormal = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_regular_shared.tres");
-    private static readonly Font KreonBold = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_bold_shared.tres");
-    
     public event EventHandler? ConfigChanged;
 
     private readonly string _path;
@@ -177,18 +174,19 @@ public abstract partial class ModConfig
         }
     }
 
-    private string GetLabelText(PropertyInfo property)
+    protected string GetLabelText(string labelName)
     {
+        if (labelName.Contains(' ')) return labelName;
         var prefix = GetType().GetPrefix();
-        var loc = LocString.GetIfExists("settings_ui", prefix + StringHelper.Slugify(property.Name) + ".title");
-        return loc != null ? loc.GetFormattedText() : property.Name;
+        var loc = LocString.GetIfExists("settings_ui", prefix + StringHelper.Slugify(labelName) + ".title");
+        return loc != null ? loc.GetFormattedText() : labelName;
     }
 
     public NConfigTickbox MakeToggleOption(Control parent, PropertyInfo property)
     {
         //format varName. Or support localization keys. Check defining namespace.
-        MarginContainer container = MakeOptionContainer(parent, "Toggle_" + property.Name, GetLabelText(property));
         
+        MarginContainer container = MakeOptionContainer(parent, "Toggle_" + property.Name, GetLabelText(property.Name));
         var tickbox = new NConfigTickbox().TransferAllNodes(SceneHelper.GetScenePath("screens/settings_tickbox"));
         tickbox.Initialize(this, property);
         
@@ -199,7 +197,7 @@ public abstract partial class ModConfig
     private static readonly FieldInfo DropdownNode = AccessTools.DeclaredField(typeof(NDropdownPositioner), "_dropdownNode");
     public NDropdownPositioner MakeDropdownOption(Control parent, PropertyInfo property)
     {
-        MarginContainer container = MakeOptionContainer(parent, "Dropdown_" + property.Name, GetLabelText(property));
+        MarginContainer container = MakeOptionContainer(parent, "Dropdown_" + property.Name, GetLabelText(property.Name));
 
         var dropdown = new NConfigDropdown().TransferAllNodes(SceneHelper.GetScenePath("screens/settings_dropdown"));
         
@@ -214,7 +212,8 @@ public abstract partial class ModConfig
         dropdownPositioner.SizeFlagsVertical = Control.SizeFlags.Fill;
         DropdownNode.SetValue(dropdownPositioner, dropdown);
 
-        container.GetParent().AddChild(dropdown);
+        dropdownPositioner.AddChild(dropdown);
+        dropdownPositioner.MouseFilter = Control.MouseFilterEnum.Ignore;
         container.AddChild(dropdownPositioner);
 
         return dropdownPositioner;
@@ -258,31 +257,71 @@ public abstract partial class ModConfig
         container.AddThemeConstantOverride("margin_right", 12);
         container.MouseFilter = Control.MouseFilterEnum.Ignore;
 
+        container.CustomMinimumSize = new Vector2(0, 64);
+        CreateLabel(labelText, container, 28);
+
+        parent.AddChild(container);
+        container.Owner = parent;
+
+        return container;
+    }
+
+    protected static MegaRichTextLabel CreateLabel(string labelText, Control container, int fontSize)
+    {
+        var kreonNormal = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_regular_shared.tres");
+        var kreonBold = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_bold_shared.tres");
+
         MegaRichTextLabel label = new();
         label.Name = "Label";
         label.Theme = PreloadManager.Cache.GetAsset<Theme>(SettingsTheme);
-        label.SetCustomMinimumSize(new(0, 64));
-        label.AddThemeFontSizeOverride("normal_font_size", 20);
-        label.AddThemeFontSizeOverride("bold_font_size", 20);
-        label.AddThemeFontSizeOverride("bold_italics_font_size", 20);
-        label.AddThemeFontSizeOverride("italics_font_size", 20);
-        label.AddThemeFontSizeOverride("mono_font_size", 20);
-        label.AddThemeFontOverride("normal_font", KreonNormal);
-        label.AddThemeFontOverride("bold_font", KreonBold);
+        label.SetCustomMinimumSize(new Vector2(0, 64));
+        label.AutoSizeEnabled = false;
+
+        label.AddThemeFontOverride("normal_font", kreonNormal);
+        label.AddThemeFontOverride("bold_font", kreonBold);
+        label.AddThemeFontSizeOverride("normal_font_size", fontSize);
+        label.AddThemeFontSizeOverride("bold_font_size", fontSize);
+        label.AddThemeFontSizeOverride("bold_italics_font_size", fontSize);
+        label.AddThemeFontSizeOverride("italics_font_size", fontSize);
+        label.AddThemeFontSizeOverride("mono_font_size", fontSize);
+
         label.MouseFilter = Control.MouseFilterEnum.Ignore;
 
         label.BbcodeEnabled = true;
         label.ScrollActive = false;
         label.VerticalAlignment = VerticalAlignment.Center;
 
-        container.AddChild(label);
-        label.Owner = container;
         label.Text = labelText;
 
-        parent.AddChild(container);
-        container.Owner = parent;
-        
+        container.AddChild(label);
+        label.Owner = container;
+
+        return label;
+    }
+
+    protected MarginContainer CreateSectionLabel(string labelName)
+    {
+        MarginContainer container = new();
+        container.Name = "Container_" + labelName.Replace(" ", "");
+        container.AddThemeConstantOverride("margin_left", 12);
+        container.AddThemeConstantOverride("margin_right", 12);
+        container.MouseFilter = Control.MouseFilterEnum.Ignore;
+
+        var label = CreateLabel($"[center][b]{GetLabelText(labelName)}[/b][/center]", container, 40);
+        label.Name = "SectionLabel_" + labelName.Replace(" ", "");
+
         return container;
+    }
+
+    protected static ColorRect CreateDivider()
+    {
+        return new ColorRect
+        {
+            Name = "Divider",
+            CustomMinimumSize = new Vector2(0, 2),
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+            Color = new Color(0.909804f, 0.862745f, 0.745098f, 0.25098f)
+        };
     }
 
     [GeneratedRegex("[^a-zA-Z0-9_]")]
