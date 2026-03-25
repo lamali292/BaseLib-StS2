@@ -1,125 +1,100 @@
-﻿using System.Reflection;
-using BaseLib.Patches.UI;
-using BaseLib.Utils;
-using Godot;
-using HarmonyLib;
+﻿using Godot;
 using MegaCrit.Sts2.Core.Assets;
-using MegaCrit.Sts2.Core.Nodes.Screens.MainMenu;
-using MegaCrit.Sts2.Core.Nodes.Screens.ModdingScreen;
-using MegaCrit.Sts2.Core.Nodes.TopBar;
+using MegaCrit.Sts2.Core.ControllerInput;
+using MegaCrit.Sts2.Core.Helpers;
+using MegaCrit.Sts2.Core.Nodes.Combat;
+using MegaCrit.Sts2.Core.Nodes.Screens.Settings;
 
 namespace BaseLib.Config.UI;
 
-public partial class NConfigButton : NTopBarButton
+public partial class NConfigButton : NSettingsButton
 {
-	//private static readonly HoverTip _hoverTip = new HoverTip(new LocString("static_hover_tips", "SETTINGS.title"), new LocString("static_hover_tips", "SETTINGS.description"));
-	
-    public bool IsConfigOpen { get; set; }
-    public static Control Create(string name, NModInfoContainer node)
+    private Action? _onPressedAction;
+    private ShaderMaterial _colorShader;
+
+    public NConfigButton()
     {
-        NConfigButton button = new();
-        button.Name = name;
-        button.MouseFilter = MouseFilterEnum.Stop;
+        CustomMinimumSize = new Vector2(324, 64);
+        SizeFlagsHorizontal = SizeFlags.ShrinkEnd;
+        SizeFlagsVertical = SizeFlags.Fill;
+        FocusMode = FocusModeEnum.All;
 
-        Control control = new();
-        control.Name = "Control";
-        control.MouseFilter = MouseFilterEnum.Ignore;
+        _colorShader = new ShaderMaterial { Shader = ResourceLoader.Load<Shader>("res://shaders/hsv.gdshader") };
 
-        TextureRect icon = new();
-        icon.Name = "Icon";
-        icon.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize;
-        icon.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
-        icon.Texture = PreloadManager.Cache.GetAsset<AtlasTexture>("res://images/atlases/ui_atlas.sprites/top_bar/top_bar_settings.tres");
-        icon.Material = ShaderUtils.GenerateHsv(1, 1, 0.9f);
-        icon.Size = icon.CustomMinimumSize = new(64, 64);
-        icon.PivotOffset = icon.Size * 0.5f;
-
-        control.AddChild(icon);
-        icon.Owner = control;
-        
-        button.AddChild(control);
-        control.Owner = button;
-        
-        control.Size = icon.Size;
-        button.Size = control.Size + new Vector2(16, 16);
-        control.Position = new(8, 8);
-        
-        node.AddChild(button);
-        button.Owner = node;
-
-        button.Position = new(node.Size.X - (button.Size.X + 8), 8);
-        button.Hide();
-        
-        return button;
-    }
-
-    public override void _Process(double delta)
-    {
-        base._Process(delta);
-        if (IsConfigOpen)
+        var image = new TextureRect
         {
-            _icon.Rotation += (float)delta;
-        }
-    }
+            Name = "Image",
+            Material = _colorShader,
+            CustomMinimumSize = new Vector2(64, 64),
+            Texture = PreloadManager.Cache.GetAsset<Texture2D>("res://images/ui/reward_screen/reward_skip_button.png"),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.Scale
+        };
+        image.SetAnchorsPreset(LayoutPreset.FullRect);
+        AddChild(image);
 
-    private static readonly FieldInfo ModdingScreenStack = AccessTools.Field(typeof(NModdingScreen), "_stack");
-    protected override void OnRelease()
-    {
-        base.OnRelease();
-        if (IsOpen())
+        var label = new Label
         {
-            IsConfigOpen = false;
-        }
-        else
-        {
-            var mod = ModConfigFillPatch.CurrentMod;
-            if (mod == null) return;
-        
-            var modConfig = ModConfigRegistry.Get(mod.manifest?.id);
-            if (modConfig != null)
+            Name = "Label",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            LabelSettings = new LabelSettings
             {
-                OpenModConfigSubmenu(modConfig);
+                Font = PreloadManager.Cache.GetAsset<FontVariation>("res://themes/kreon_bold_glyph_space_two.tres"),
+                FontSize = 28,
+                FontColor = new Color(0.91f, 0.86f, 0.74f),
+                OutlineSize = 12,
+                OutlineColor = new Color(0.29f, 0.14f, 0.14f)
             }
-        }
-        
-        UpdateScreenOpen(); //triggers animations
-        _hsv?.SetShaderParameter("v", 0.9f);
+        };
+        label.SetAnchorsPreset(LayoutPreset.FullRect);
+        AddChild(label);
+
+        var reticleScene = PreloadManager.Cache.GetScene(SceneHelper.GetScenePath("ui/selection_reticle"));
+        var reticle = reticleScene.Instantiate<NSelectionReticle>();
+        reticle.Name = "SelectionReticle";
+        reticle.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+
+        AddChild(reticle);
     }
 
-    /* TODO - generate hovertip
-    public override void OnFocus()
+    /// <summary>
+    /// Sets the color using an HSV shader.
+    /// </summary>
+    /// <param name="h">Hue, range 0-1</param>
+    /// <param name="s">Saturation, 0-1 or higher for boosted saturation</param>
+    /// <param name="v">Value, range 0-1</param>
+    public void SetColor(float h, float s, float v)
     {
-        base.OnFocus();
-        NHoverTipSet nHoverTipSet = NHoverTipSet.CreateAndShow(this, _hoverTip);
-        nHoverTipSet.GlobalPosition = base.GlobalPosition + new Vector2(base.Size.X - nHoverTipSet.Size.X, base.Size.Y + 20f);
+        _colorShader.SetShaderParameter("h", h);
+        _colorShader.SetShaderParameter("s", s);
+        _colorShader.SetShaderParameter("v", v);
     }
 
-    public override void OnUnfocus()
+    public override void _Ready()
     {
-        base.OnUnfocus();
-        NHoverTipSet.Remove(this);
-    }*/
-
-	protected override bool IsOpen()
-    {
-        return IsConfigOpen;
+        ConnectSignals();
     }
 
-    private void OpenModConfigSubmenu(ModConfig modConfig)
+    public void Initialize(string buttonText, Action onPressed)
     {
-        var stackField = AccessTools.Field(typeof(NSubmenu), "_stack");
+        _onPressedAction = onPressed;
 
-        if (FindParent("ModdingScreen") is not NModdingScreen moddingScreen ||
-            stackField.GetValue(moddingScreen) is not NMainMenuSubmenuStack stackInstance)
+        var label = GetNodeOrNull<Label>("Label");
+        if (label != null)
         {
-            ModConfig.ModConfigLogger.Error("Unable to locate the game's modding screen!\n" +
-                                            "Please report a bug at:\nhttps://github.com/Alchyr/BaseLib-StS2");
-            return;
+            label.Text = buttonText;
         }
+    }
 
-        var modConfigSubmenu = stackInstance.PushSubmenuType<NModConfigSubmenu>();
-        modConfigSubmenu.LoadModConfig(modConfig, this);
+    public override void _GuiInput(InputEvent @event)
+    {
+        base._GuiInput(@event);
 
-        IsConfigOpen = true;
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left } mouseEvent && mouseEvent.IsReleased() ||
+            @event.IsActionReleased(MegaInput.select))
+        {
+            _onPressedAction?.Invoke();
+        }
     }
 }

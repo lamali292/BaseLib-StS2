@@ -1,13 +1,19 @@
 {
-  "BASELIB.mod_title": "Example mod configuration",
+  "BASELIB.mod_title": "BaseLib",
 
-  "BASELIB-FIRST_SECTION.title": "These are just example options",
-  "BASELIB-SECOND_SECTION.title": "Nothing here does anything at all",
   "BASELIB-LOG_SECTION.title": "Log window/Console",
 
-  "BASELIB-ENABLE_DEBUG_LOGGING.title": "Enable debug logging",
-  "BASELIB-ENABLE_DEBUG_LOGGING.hover.title": "Explicit hover title",
-  "BASELIB-ENABLE_DEBUG_LOGGING.hover.desc": "Pretend setting to enable debug logging",
+  "BASELIB-OPEN_LOG_WINDOW_ON_STARTUP.title": "Open log window on startup",
+  "BASELIB-OPEN_LOG_WINDOW_ON_STARTUP.hover.desc": "Opens the BaseLib log window automatically when the main menu loads.",
+
+  "BASELIB-LIMITED_LOG_SIZE.title": "Log history size",
+  "BASELIB-LIMITED_LOG_SIZE.hover.desc": "Maximum number of lines retained in the in-game log window.",
+
+  "BASELIB-RESTORE_DEFAULTS.title": "Restore defaults",
+  "BASELIB-RESET_MODCONFIG_CONFIRMATION.body": "Are you sure you want to reset this mod's settings to default?",
+
+  "BASELIB-FIRST_EXAMPLE_SECTION.title": "Everything below is just example settings",
+  "BASELIB-SECOND_SECTION.title": "Nothing here does anything at all",
 
   "BASELIB-ALLOW_DUPLICATE_RELICS.title": "Allow duplicate relics",
   "BASELIB-ALLOW_DUPLICATE_RELICS.hover.desc": "Pretend setting to allow duplicate relics",
@@ -23,9 +29,10 @@
   "BASELIB-STARTING_ACT.title": "Starting act",
   "BASELIB-MINIMUM_ELITES_PER_ACT.title": "Minimum elites per act",
 
-  "BASELIB-OPEN_LOG_WINDOW_ON_STARTUP.title": "Open log window on startup",
-  "BASELIB-OPEN_LOG_WINDOW_ON_STARTUP.hover.desc": "Opens the BaseLib log window automatically when the main menu loads.",
+  "BASELIB-PLAYER_NAME.title": "Player name",
+  "BASELIB-PLAYER_NAME.placeholder": "Enter a name!",
 
-  "BASELIB-LIMITED_LOG_SIZE.title": "Log history size",
-  "BASELIB-LIMITED_LOG_SIZE.hover.desc": "Maximum number of lines retained in the in-game log window."
+  "BASELIB-EXAMPLE_BUTTON.title": "Example button",
+  "BASELIB-EXAMPLE_BUTTON.hover.desc": "Click me!",
+  "BASELIB-HELLO_WORLD.title": "Hello world"
 }

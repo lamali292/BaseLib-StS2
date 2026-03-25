@@ -1,7 +1,9 @@
 ﻿using System.Reflection;
 using BaseLib.Config.UI;
-using BaseLib.Extensions;
 using Godot;
+using MegaCrit.Sts2.Core.Localization;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Multiplayer;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -18,16 +20,50 @@ public class SimpleModConfig : ModConfig
     public override void SetupConfigUI(Control optionContainer)
     {
         MainFile.Logger.Info($"Setting up SimpleModConfig {GetType().FullName}");
+        GenerateOptionsForAllProperties(optionContainer);
+        AddRestoreDefaultsButton(optionContainer);
+    }
 
-        VBoxContainer options = new();
-        options.Size = optionContainer.Size;
-        options.AddThemeConstantOverride("separation", 8);
-        optionContainer.AddChild(options);
+    protected void AddRestoreDefaultsButton(Control optionContainer)
+    {
+        var resetButton = CreateRawButtonControl(GetBaseLibLabelText("RestoreDefaults"), async void () =>
+        {
+            try
+            {
+                await ConfirmRestoreDefaults();
+            }
+            catch (Exception e)
+            {
+                // Seems exceedingly unlikely, but still
+                ModConfigLogger.Error($"Unable to show restore confirmation dialog: {e.Message}");
+            }
+        });
+        resetButton.CustomMinimumSize = new Vector2(360, resetButton.CustomMinimumSize.Y);
+        resetButton.SetColor(0.45f, 1.5f, 0.8f);
 
-        // Add "margin" to the top, to keep the edge-element distance same as on the left and right
-        options.AddChild(new Control { CustomMinimumSize = new Vector2(0, 16) });
+        var centerContainer = new CenterContainer();
+        centerContainer.CustomMinimumSize = new Vector2(0, 128);
+        centerContainer.AddChild(resetButton);
 
-        GenerateOptionsForAllProperties(options);
+        optionContainer.AddChild(centerContainer);
+    }
+
+    public async Task ConfirmRestoreDefaults()
+    {
+        var confirmationModal = NGenericPopup.Create();
+        if (confirmationModal == null || NModalContainer.Instance == null) return;
+        NModalContainer.Instance.Add(confirmationModal);
+
+        // Only the body is from BaseLib, the others are reused from the game
+        var confirmed = await confirmationModal.WaitForConfirmation(
+            body: new LocString("settings_ui", "BASELIB-RESET_MODCONFIG_CONFIRMATION.body"),
+            header: new LocString("settings_ui", "RESET_CONFIRMATION.header"),
+            noButton: new LocString("main_menu_ui", "GENERIC_POPUP.cancel"),
+            yesButton: new LocString("main_menu_ui", "GENERIC_POPUP.confirm")
+        );
+
+        if (confirmed)
+            RestoreDefaultsNoConfirm();
     }
 
     /// <inheritdoc cref="CreateStandardOption"/>
@@ -41,6 +77,26 @@ public class SimpleModConfig : ModConfig
     /// <inheritdoc cref="CreateStandardOption"/>
     protected NConfigOptionRow CreateDropdownOption(PropertyInfo property, bool addHoverTip = false) =>
         CreateStandardOption(CreateRawDropdownControl, property, addHoverTip);
+
+    /// <inheritdoc cref="CreateStandardOption"/>
+    protected NConfigOptionRow CreateLineEditOption(PropertyInfo property, bool addHoverTip = false) =>
+        CreateStandardOption(CreateRawLineEditControl, property, addHoverTip);
+
+    /// <summary>
+    /// Creates a button that can be mapped to perform any action.
+    /// </summary>
+    /// <param name="rowLabelKey">LocString key for the row label (shown where setting names are shown).</param>
+    /// <param name="buttonLabelKey">LocString key for the button's label text.</param>
+    /// <param name="onPressed">Action to perform when clicked/pressed.</param>
+    /// <param name="addHoverTip">If true, generates a localized hover tip; the localization key name is based on rowLabelKey.</param>
+    protected NConfigOptionRow CreateButton(string rowLabelKey, string buttonLabelKey, Action onPressed, bool addHoverTip = false)
+    {
+        var control = CreateRawButtonControl(GetLabelText(buttonLabelKey), onPressed);
+        var label = CreateRawLabelControl(GetLabelText(rowLabelKey), 28);
+        var option = new NConfigOptionRow(ModPrefix, rowLabelKey, label, control);
+        if (addHoverTip) option.AddHoverTip();
+        return option;
+    }
 
     /// <summary>
     /// Creates a layout-ready section header row.
@@ -78,13 +134,14 @@ public class SimpleModConfig : ModConfig
     {
         var control = controlCreator.Invoke(property);
         var label = CreateRawLabelControl(GetLabelText(property.Name), 28);
-        var option = new NConfigOptionRow(ModPrefix, property, label, control);
+        var option = new NConfigOptionRow(ModPrefix, property.Name, label, control);
         if (addHoverTip) option.AddHoverTip();
         return option;
     }
 
     /// <summary>
-    /// Auto-generates a UI row from a property, including a hover tip if [ConfigHoverTip] is specified.
+    /// Auto-generates a UI row from a property, including a hover tip if [ConfigHoverTip] is specified.<br/>
+    /// Properties with [ConfigHideinUI] will NOT be ignored, so you can use this to manually create them if you wish.
     /// </summary>
     /// <exception cref="NotSupportedException">Thrown for non-supported property types.</exception>
     protected NConfigOptionRow GenerateOptionFromProperty(PropertyInfo property)
@@ -94,6 +151,7 @@ public class SimpleModConfig : ModConfig
         NConfigOptionRow optionRow;
         if (propertyType == typeof(bool)) optionRow = CreateToggleOption(property);
         else if (propertyType == typeof(double)) optionRow = CreateSliderOption(property);
+        else if (propertyType == typeof(string)) optionRow = CreateLineEditOption(property);
         else if (propertyType.IsEnum) optionRow = CreateDropdownOption(property);
         else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
@@ -113,8 +171,10 @@ public class SimpleModConfig : ModConfig
     }
 
     /// <summary>
-    /// Auto-generate option rows for all properties in this SimpleModConfig. Runs by default, so that a subclass
-    /// only needs to add its config properties, and nothing more, to get a reasonable UI.
+    /// <para>Auto-generate option rows for all properties in this SimpleModConfig. Runs by default, so that a subclass
+    /// only needs to add its config properties, and nothing more, to get a reasonable UI.</para>
+    /// Properties marked with [ConfigHideInUI] will be ignored. Properties marked with [ConfigIgnore] won't even make
+    /// it to this method.
     /// </summary>
     /// <param name="targetContainer">Container where the generated options are inserted.</param>
     protected void GenerateOptionsForAllProperties(Control targetContainer)
@@ -122,7 +182,9 @@ public class SimpleModConfig : ModConfig
         Control? currentSetting = null;
         string? currentSection = null;
 
-        var properties = ConfigProperties.ToArray();
+        var properties = ConfigProperties.Where(prop =>
+            prop.GetCustomAttribute<ConfigHideInUI>() == null).ToArray();
+
         for (var i = 0; i < properties.Length; i++)
         {
             var property = properties[i];

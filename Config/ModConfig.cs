@@ -37,6 +37,7 @@ public abstract partial class ModConfig
     /// a property.
     /// </summary>
     public event EventHandler? ConfigChanged;
+    public event Action? OnConfigReloaded;
 
     private readonly string _path;
     public string ModPrefix { get; private set; }
@@ -46,6 +47,7 @@ public abstract partial class ModConfig
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     protected readonly List<PropertyInfo> ConfigProperties = [];
+    private readonly Dictionary<string, object?> _defaultValues = new();
 
     public static class ModConfigLogger
     {
@@ -105,6 +107,7 @@ public abstract partial class ModConfig
         ConfigProperties.Clear();
         foreach (var property in configType.GetProperties())
         {
+            if (property.GetCustomAttribute<ConfigIgnoreAttribute>() != null) continue;
             if (!property.CanRead || !property.CanWrite) continue;
             if (property.GetMethod?.IsStatic != true)
             {
@@ -115,7 +118,29 @@ public abstract partial class ModConfig
             ConfigProperties.Add(property);
         }
     }
-    
+
+    public T? GetDefaultValue<T>(string propertyName)
+    {
+        if (_defaultValues.TryGetValue(propertyName, out var val) && val is T typedValue)
+        {
+            return typedValue;
+        }
+
+        return default;
+    }
+
+    protected void RestoreDefaultsNoConfirm()
+    {
+        foreach (var property in ConfigProperties)
+        {
+            var defaultValue = GetDefaultValue<object?>(property.Name);
+            property.SetValue(null, defaultValue);
+        }
+
+        Save();
+        OnConfigReloaded?.Invoke();
+    }
+
     public abstract void SetupConfigUI(Control optionContainer);
 
     private void Init()
@@ -147,7 +172,6 @@ public abstract partial class ModConfig
             foreach (var property in ConfigProperties)
             {
                 var value = property.GetValue(null);
-
                 var converter = TypeDescriptor.GetConverter(property.PropertyType);
                 var stringValue = converter.ConvertToInvariantString(value);
 
@@ -207,6 +231,9 @@ public abstract partial class ModConfig
             {
                 foreach (var property in ConfigProperties)
                 {
+                    // Save the default value if this is the first load
+                    _defaultValues.TryAdd(property.Name, property.GetValue(null));
+
                     if (!values.TryGetValue(property.Name, out var value))
                     {
                         // Missing value; might be due to a new mod version, etc. Re-save later to fill it in.
@@ -281,11 +308,22 @@ public abstract partial class ModConfig
 
     protected string GetLabelText(string labelName)
     {
-        var loc = LocString.GetIfExists("settings_ui", ModPrefix + StringHelper.Slugify(labelName) + ".title");
+        var loc = LocString.GetIfExists("settings_ui", $"{ModPrefix}{StringHelper.Slugify(labelName)}.title");
         return loc != null ? loc.GetFormattedText() : labelName;
     }
 
-    // Creates a raw toggle control, with no layout (use SimpleModConfig.CreateToggleOption unless you want custom layout)
+    protected static string GetBaseLibLabelText(string labelName)
+    {
+        var loc = LocString.GetIfExists("settings_ui", $"BASELIB-{StringHelper.Slugify(labelName)}.title");
+        return loc != null ? loc.GetFormattedText() : labelName;
+    }
+
+    /// <summary>
+    /// Creates a raw control, with no layout (label, margins), no automatic hover tip, etc.<br/>
+    /// Use the Create*Option methods instead unless you need a custom layout (or use them, and customize them).
+    /// </summary>
+    /// <param name="property">The property this control is bound to. Fetch with e.g. GetType().GetProperty() in
+    /// a ModConfig.</param>
     protected NConfigTickbox CreateRawTickboxControl(PropertyInfo property)
     {
         var tickbox = new NConfigTickbox();
@@ -293,7 +331,7 @@ public abstract partial class ModConfig
         return tickbox;
     }
 
-    // Creates a raw slider control, with no layout (use SimpleModConfig.CreateSliderOption unless you want custom layout)
+    /// <inheritdoc cref="CreateRawTickboxControl"/>
     protected NConfigSlider CreateRawSliderControl(PropertyInfo property)
     {
         var slider = new NConfigSlider();
@@ -301,19 +339,40 @@ public abstract partial class ModConfig
         return slider;
     }
 
-    // Creates a raw dropdown control, with no layout (use SimpleModConfig.CreateDropdownOption unless you want custom layout)
+    /// <inheritdoc cref="CreateRawTickboxControl"/>
+    protected NConfigLineEdit CreateRawLineEditControl(PropertyInfo property)
+    {
+        var lineEdit = new NConfigLineEdit();
+        lineEdit.Initialize(this, property);
+        return lineEdit;
+    }
+
+    /// <summary>
+    /// Creates a raw button control. You may want <see cref="SimpleModConfig.CreateButton" /> instead.
+    /// </summary>
+    /// <param name="labelText">The text to place on the button</param>
+    /// <param name="onPressed">Action to perform when the user clicks/presses the button.</param>
+    protected NConfigButton CreateRawButtonControl(string labelText, Action onPressed)
+    {
+        var button = new NConfigButton();
+        button.Initialize(labelText, onPressed);
+        return button;
+    }
+
     private static readonly FieldInfo DropdownNode = AccessTools.DeclaredField(typeof(NDropdownPositioner), "_dropdownNode");
+    /// <inheritdoc cref="CreateRawTickboxControl"/>
     protected NDropdownPositioner CreateRawDropdownControl(PropertyInfo property)
     {
         var dropdown = new NConfigDropdown();
-        var items = CreateDropdownItems(property, out var currentIndex);
-        dropdown.SetItems(items, currentIndex);
-        
+        dropdown.Initialize(this, property, ModPrefix, Changed);
+        dropdown.SetFromProperty();
+
         var dropdownPositioner = new NDropdownPositioner();
-        dropdownPositioner.SetCustomMinimumSize(new(320, 64));
+        dropdownPositioner.SetCustomMinimumSize(new(324, 64));
         dropdownPositioner.FocusMode = Control.FocusModeEnum.All;
         dropdownPositioner.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         dropdownPositioner.SizeFlagsVertical = Control.SizeFlags.Fill;
+
         DropdownNode.SetValue(dropdownPositioner, dropdown);
 
         dropdownPositioner.AddChild(dropdown);
@@ -322,42 +381,7 @@ public abstract partial class ModConfig
         return dropdownPositioner;
     }
 
-    private List<NConfigDropdownItem.ConfigDropdownItem> CreateDropdownItems(PropertyInfo property, out int currentIndex)
-    {
-        List<NConfigDropdownItem.ConfigDropdownItem> items = [];
-        var type = property.PropertyType;
-        var currentValue = property.GetValue(null);
-        int count = 0;
-        currentIndex = 0;
-        
-        if (type.IsEnum)
-        {
-            foreach (var value in type.GetEnumValues())
-            {
-                if (currentValue != null && currentValue.Equals(value))
-                {
-                    currentIndex = count;
-                }
-                ++count;
-                var loc = LocString.GetIfExists("settings_ui", $"{ModPrefix}{StringHelper.Slugify(property.Name)}.{value}");
-                var label = loc?.GetRawText() ?? value?.ToString() ?? "UNKNOWN";
-                items.Add(new (label, () =>
-                {
-                    property.SetValue(null, value);
-                    Changed();
-                }));
-            }
-        }
-        else //Check for dropdown options attribute
-        {
-            throw new NotSupportedException("Dropdown only supports enum types currently");
-        }
-
-        return items;
-    }
-
-    // Creates a raw label control, with no layout (see SimpleModConfig.Create*Option and CreateSectionHeader for
-    // layout-ready controls)
+    /// <inheritdoc cref="CreateRawTickboxControl"/>
     public static MegaRichTextLabel CreateRawLabelControl(string labelText, int fontSize)
     {
         var kreonNormal = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_regular_shared.tres");

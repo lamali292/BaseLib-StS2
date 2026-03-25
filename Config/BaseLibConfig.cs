@@ -1,4 +1,6 @@
-﻿using MegaCrit.Sts2.Core.Entities.Cards;
+﻿using Godot;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
 namespace BaseLib.Config;
 
@@ -8,20 +10,28 @@ namespace BaseLib.Config;
 [HoverTipsByDefault]
 internal class BaseLibConfig : SimpleModConfig
 {
+    // Actual BaseLib settings
+    [ConfigSection("LogSection")]
+    public static bool OpenLogWindowOnStartup { get; set; } = false;
+
+    [SliderRange(128, 2048, 64)]
+    [SliderLabelFormat("{0:0}")]
+    public static double LimitedLogSize { get; set; } = 256;
+
+    // Everything below is just examples. Will likely be removed very soon, when the Wiki has examples and explanations.
+
     public enum StartingActEnum
     {
         Overgrowth, Underdocks
     }
 
     // Note: In all the example localization strings below, BASELIB is used because this file is in BaseLib!
-    // Your own mod name would be there if you copied this class over to your mod.
+    // Your own mod name would be required there if you copied this class over to your mod.
 
-    // BASELIB-FIRST_SECTION.title in settings_ui.json
-    [ConfigSection("FirstSection")]
+    // BASELIB-FIRST_EXAMPLE_SECTION.title in settings_ui.json
+    [ConfigSection("FirstExampleSection")]
 
-    // BASELIB-ENABLE_DEBUG_LOGGING.title in settings_ui.json
-    public static bool EnableDebugLogging { get; set; } = false;
-
+    // BASELIB-ALLOW_DUPLICATE_RELICS.title in settings_ui.json
     public static bool AllowDuplicateRelics { get; set; } = false;
 
     // Would generate a hover tip if BASELIB-CREATED_CARD_KEYWORD.hover.desc exists
@@ -48,10 +58,32 @@ internal class BaseLibConfig : SimpleModConfig
     [ConfigHoverTip(false)]
     public static double MinimumElitesPerAct { get; set; } = 6;
 
-    [ConfigSection("LogSection")]
-    public static bool OpenLogWindowOnStartup { get; set; } = false;
+    //[ConfigTextInput(@"[A-Za-z0-9 ]*")] // Custom regex example, with unlimited length, and empty value allowed
+    [ConfigHoverTip(false)]
+    [ConfigTextInput(TextInputPreset.SafeDisplayName, MaxLength = 16)]
+    public static string PlayerName { get; set; } = "Player";
 
-    [SliderRange(128, 2048, 64)]
-    [SliderLabelFormat("{0:0}")]
-    public static double LimitedLogSize { get; set; } = 256;
+    [ConfigHideInUI] // Load and save automatically, but don't create a UI
+    public static int TotalCardsPlayed { get; set; } = 0;
+
+    [ConfigIgnore] // Don't load, save or create a UI for this property
+    public static int NotAConfigProperty { get; set; } = 42;
+
+    // An example on how to add a custom button at the end of the list, but before the restore defaults button
+    public override void SetupConfigUI(Control optionContainer)
+    {
+        GenerateOptionsForAllProperties(optionContainer);
+
+        optionContainer.AddChild(CreateDividerControl());
+
+        var buttonRow = CreateButton("ExampleButton", "HelloWorld", () =>
+        {
+            var name = string.IsNullOrWhiteSpace(PlayerName) ? "Player" : PlayerName;
+            var popup = NErrorPopup.Create("Hello World", $"Hi there, {name}!", false);
+            if (popup != null && NModalContainer.Instance != null) NModalContainer.Instance.Add(popup);
+        }, true);
+        optionContainer.AddChild(buttonRow);
+
+        AddRestoreDefaultsButton(optionContainer);
+    }
 }
