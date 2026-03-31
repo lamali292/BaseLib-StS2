@@ -12,7 +12,7 @@ namespace BaseLib.Patches.Content;
 [HarmonyPatch(typeof(ModelDb), nameof(ModelDb.InitIds))]
 public static class CustomContentDictionary
 {
-    private static readonly HashSet<Type> RegisteredTypes = [];
+    public static readonly HashSet<Type> RegisteredTypes = [];
     private static readonly Dictionary<Type, Type> PoolTypes = [];
     public static readonly List<CustomAncientModel> CustomAncients = [];
     

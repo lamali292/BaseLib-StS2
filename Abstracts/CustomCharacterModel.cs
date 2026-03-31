@@ -8,12 +8,13 @@ using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using System.Reflection;
 using BaseLib.Extensions;
+using BaseLib.Patches.Content;
 using BaseLib.Utils.NodeFactories;
 using MegaCrit.Sts2.Core.Helpers;
 
 namespace BaseLib.Abstracts;
 
-public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILocalizationProvider
+public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILocalizationProvider, ISceneConversions
 {
     public CustomCharacterModel()
     {
@@ -164,15 +165,20 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILoca
 
         return animator;
     }
+
+    public void RegisterSceneConversions()
+    {
+        CustomVisualPath?.RegisterSceneForConversion<NCreatureVisuals>();
+        CustomEnergyCounterPath?.RegisterSceneForConversion<NEnergyCounter>();
+    }
 }
     
 public readonly struct CustomEnergyCounter(Func<int, string> pathFunc, Color outlineColor, Color burstColor) {
-    private readonly Func<int, string> _getPath = pathFunc;
     public readonly Color OutlineColor = outlineColor;
     public readonly Color BurstColor = burstColor;
 
-    public string LayerImagePath(int layer) => _getPath(layer);
-} 
+    public string LayerImagePath(int layer) => pathFunc(layer);
+}
 
 
 /******************** Patches ********************/
@@ -254,31 +260,16 @@ public class ModelDbCustomCharacters
     public static readonly List<CustomCharacterModel> CustomCharacters = [];
 
     [HarmonyPostfix]
-    public static IEnumerable<CharacterModel> AddCustomPools(IEnumerable<CharacterModel> __result)
+    static IEnumerable<CharacterModel> AddCustomCharacters(IEnumerable<CharacterModel> __result)
     {
-        EnsureScenePathsRegistered();
         return [.. __result, .. CustomCharacters];
     }
 
     public static void Register(CustomCharacterModel character)
     {
-        if (!CustomCharacters.Any(existing => existing.Id.Equals(character.Id)))
-            CustomCharacters.Add(character);
-    }
-
-    /// <summary>
-    /// Registers scene paths for all custom characters.
-    /// Called lazily (from AddCustomPools) rather than from the constructor, because
-    /// virtual properties like CustomVisualPath may depend on fields set in derived
-    /// constructors that haven't run yet when Register() is called from the base ctor.
-    /// </summary>
-    private static void EnsureScenePathsRegistered()
-    {
-        foreach (var character in CustomCharacters)
-        {
-            character.CustomVisualPath?.RegisterSceneForConversion<NCreatureVisuals>();
-            character.EnergyCounterPath?.RegisterSceneForConversion<NEnergyCounter>();
-        }
+        if (!CustomContentDictionary.RegisterType(character.GetType())) return;
+        
+        CustomCharacters.Add(character);
     }
 }
 
