@@ -466,6 +466,9 @@ public partial class NModConfigSubmenu : NSubmenu
             _optionContainer.QueueFreeSafely();
             _optionContainer = null;
         }
+        
+        if (_currentConfig is SimpleModConfig simpleModConfig)
+            simpleModConfig.ClearUIEventHandlers();
 
         _currentConfig = null;
 

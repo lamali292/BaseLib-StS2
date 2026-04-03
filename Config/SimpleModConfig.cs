@@ -27,7 +27,6 @@ public class SimpleModConfig : ModConfig
     public override void SetupConfigUI(Control optionContainer)
     {
         BaseLibMain.Logger.Info($"Setting up SimpleModConfig {GetType().FullName}");
-        ClearUIEventHandlers();
         GenerateOptionsForAllProperties(optionContainer);
         AddRestoreDefaultsButton(optionContainer);
     }
