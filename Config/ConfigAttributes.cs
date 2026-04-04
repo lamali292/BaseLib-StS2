@@ -13,6 +13,7 @@ public class ConfigSectionAttribute(string name) : Attribute
 
 /// <summary>
 /// Specifies a range and step for a slider. Negative numbers are supported, as are noninteger numbers.<br/>
+/// Supported property types: <see cref="int"/>, <see cref="float"/>, <see cref="double"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class SliderRangeAttribute : Attribute

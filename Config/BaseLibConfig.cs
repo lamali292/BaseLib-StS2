@@ -14,11 +14,11 @@ internal class BaseLibConfig : SimpleModConfig
 
     [SliderRange(128, 2048, 64)]
     [SliderLabelFormat("{0:0} lines")]
-    public static double LimitedLogSize { get; set; } = 256;
+    public static int LimitedLogSize { get; set; } = 256;
 
     [SliderRange(8, 48)]
     [SliderLabelFormat("{0:0} px")]
-    public static double LogFontSize { get; set; } = 14;
+    public static int LogFontSize { get; set; } = 14;
 
     [ConfigSection("HarmonyDumpSection")]
     [ConfigTextInput(TextInputPreset.Anything, MaxLength = 1024)]

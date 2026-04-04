@@ -13,6 +13,7 @@ namespace BaseLib.Config.UI;
 // We don't inherit from NSettingsSlider because it's too rigid (forces % in the format, forces step of 5, fixed width)
 public partial class NConfigSlider : Control
 {
+    public static readonly Type[] SupportedTypes = [typeof(int), typeof(float), typeof(double)];
     private ModConfig? _config;
     private PropertyInfo? _property;
     private string _displayFormat = "{0}";
@@ -56,6 +57,8 @@ public partial class NConfigSlider : Control
     public double MaxValue { get; private set; }
     public double Step => _slider.Step;
 
+    private static bool IsInteger(double value) => Math.Abs(value - Math.Round(value)) < 1e-6;
+
     /// <summary>
     /// Updates the slider's limits (and optionally step) atomically, ensuring no issues where e.g. min > max occur,
     /// even briefly.<br/>
@@ -68,15 +71,34 @@ public partial class NConfigSlider : Control
         if (min >= max)
             throw new ArgumentException($"Invalid slider range: min ({min}) must be less than max ({max}).");
 
+        if (_property?.PropertyType == typeof(int))
+        {
+            if (!IsInteger(min) || !IsInteger(max))
+                throw new ArgumentException("Invalid slider values: min and max must be integers for property type int");
+
+            min = Math.Round(min);
+            max = Math.Round(max);
+
+            if (step.HasValue)
+            {
+                if (!IsInteger(step.Value))
+                    throw new ArgumentException("Invalid slider values: step must be integer for property type int");
+
+                step = Math.Round(step.Value);
+            }
+        }
+
         // We use an offset to enable negative value support in NSlider
         var currentRealValue = _slider.Value + MinValue;
 
         MinValue = min;
         MaxValue = max;
-        if (step != null) _slider.Step = step.Value;
 
-        // _slider.MinValue is always 0, so we don't touch it here even if _realMin changes
+        // The internal NSlider does not support negative numbers, so we force it to run from 0 and up, and handle the
+        // "real" values manually
+        _slider.MinValue = 0;
         _slider.MaxValue = MaxValue - MinValue;
+        if (step != null) _slider.Step = step.Value;
         RecalculateMinRepeatDelay();
 
         // NSlider.SetValueWithoutAnimation crashes unless its _Ready has executed, but if SetRange is called prior
@@ -111,45 +133,34 @@ public partial class NConfigSlider : Control
         Connect(Godot.Control.SignalName.FocusEntered, Callable.From(OnFocus));
         Connect(Godot.Control.SignalName.FocusExited, Callable.From(OnUnfocus));
 
+        _config!.OnConfigReloaded += SetFromProperty;
+
         _fullyInitialized = true;
     }
 
     public void Initialize(ModConfig modConfig, PropertyInfo property)
     {
-        if (property.PropertyType != typeof(double))
-            throw new ArgumentException("Attempted to assign NConfigSlider a non-double property");
+        if (!SupportedTypes.Contains(property.PropertyType))
+            throw new ArgumentException("Attempted to initialize NConfigSlider with an unsupported property type. " +
+                                        $"Supported types: {string.Join<Type>(", ", SupportedTypes)}");
 
         _config = modConfig;
         _property = property;
 
-        var rangeAttr = property.GetCustomAttribute<SliderRangeAttribute>();
         var formatAttr = property.GetCustomAttribute<SliderLabelFormatAttribute>();
+        _displayFormat = formatAttr?.Format ?? "{0}";
 
+        var rangeAttr = property.GetCustomAttribute<SliderRangeAttribute>();
         var min = rangeAttr?.Min ?? 0;
         var max = rangeAttr?.Max ?? 100;
         var step = rangeAttr?.Step ?? 1;
-        _displayFormat = formatAttr?.Format ?? "{0}";
-
-        if (min >= max)
-            throw new ArgumentException($"Invalid slider range: min ({min}) must be less than max ({max}).");
-
-        MinValue = min;
-        MaxValue = max;
-
-        // Force the internal Godot NSlider to run from 0 upwards, since it does not support negative numbers
-        _slider.MinValue = 0;
-        _slider.MaxValue = MaxValue - MinValue;
-        _slider.Step = step;
-
-        RecalculateMinRepeatDelay();
-
-        _config.OnConfigReloaded += SetFromProperty;
+        SetRange(min, max, step);
     }
 
     private void SetFromProperty()
     {
-        var propValue = (double)_property!.GetValue(null)!;
-        SetValue(propValue);
+        var rawValue = _property!.GetValue(null)!;
+        SetValue(Convert.ToDouble(rawValue));
     }
 
     private void SetValue(double value)
@@ -160,7 +171,7 @@ public partial class NConfigSlider : Control
 
         // Clamp always returns one of its parameters, so exactness isn't an issue here
         // ReSharper disable once CompareOfFloatsByEqualityOperator
-        if (value != clampedValue) _property?.SetValue(null, clampedValue);
+        if (value != clampedValue) _property?.SetValue(null, Convert.ChangeType(clampedValue, _property.PropertyType));
     }
 
     private void OnValueChanged(double proxyValue)
@@ -175,7 +186,7 @@ public partial class NConfigSlider : Control
             realValue = Math.Round(realValue, decimalPlaces);
         }
 
-        _property?.SetValue(null, realValue);
+        _property?.SetValue(null, Convert.ChangeType(realValue, _property.PropertyType));
         _config?.Changed();
         UpdateLabel(realValue);
     }

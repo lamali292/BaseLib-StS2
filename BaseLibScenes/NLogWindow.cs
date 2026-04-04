@@ -76,7 +76,7 @@ public partial class NLogWindow : Window
         _regexButton.ButtonPressed = BaseLibConfig.LogUseRegex;
         _inverseButton.ButtonPressed = BaseLibConfig.LogInvertFilter;
         _filterInput.Text = BaseLibConfig.LogLastFilter;
-        _currentFontSize = (int)BaseLibConfig.LogFontSize;
+        _currentFontSize = BaseLibConfig.LogFontSize;
 
         _filterInput.TextChanged += (_) => { _settingChanged = true; UpdateFilter(); };
         _regexButton.Toggled += (_) => { _settingChanged = true; UpdateFilter(); };
@@ -244,7 +244,7 @@ public partial class NLogWindow : Window
 
     private static void EnsureLogLimit()
     {
-        int configuredLimit = (int)BaseLibConfig.LimitedLogSize;
+        int configuredLimit = BaseLibConfig.LimitedLogSize;
         if (_log.Limit == configuredLimit) return;
 
         _log.SetLimit(configuredLimit);
@@ -260,7 +260,7 @@ public partial class NLogWindow : Window
     }
 
     private void ChangeFontSize(int deltaPx) =>
-        SetFontSize((int)Mathf.Clamp(BaseLibConfig.LogFontSize + deltaPx, 8, 48));
+        SetFontSize(Math.Clamp(BaseLibConfig.LogFontSize + deltaPx, 8, 48));
 
     private void SetFontSize(int newSize, bool save = true)
     {
