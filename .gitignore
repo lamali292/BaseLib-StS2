@@ -1,3 +1,6 @@
+local.props
+!local.props.template
+
 .godot/
 /android/
 .git/
