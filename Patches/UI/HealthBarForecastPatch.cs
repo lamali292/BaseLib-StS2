@@ -2,13 +2,20 @@ using BaseLib.Hooks;
 using BaseLib.Utils;
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.addons.mega_text;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 
 namespace BaseLib.Patches.UI;
 
+/// <summary>
+///     Harmony postfixes on <see cref="NHealthBar" /> that draw custom forecast nine-patches, middleground animation,
+///     and lethal HP label tinting from <see cref="HealthBarForecastRegistry" /> data.
+/// </summary>
+/// <remarks>
+///     When no segments apply, vanilla visuals are unchanged. Right-side segments layer above poison; left-side above
+///     doom.
+/// </remarks>
 [HarmonyPatch]
 public static class HealthBarForecastPatch
 {
@@ -94,7 +101,7 @@ public static class HealthBarForecastPatch
             var leftWidth = GetFgWidth(healthBar, remainingHp);
             var rightWidth = GetFgWidth(healthBar, previousHp);
             node.Visible = true;
-            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial);
+            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial, segment.OverlaySelfModulate);
             node.OffsetLeft = remainingHp > 0 ? Math.Max(0f, leftWidth - node.PatchMarginLeft) : 0f;
             node.OffsetRight = rightWidth - maxWidth;
 
@@ -164,7 +171,7 @@ public static class HealthBarForecastPatch
             var endWidth = GetFgWidth(healthBar, leftAccumulated);
 
             node.Visible = true;
-            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial);
+            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial, segment.OverlaySelfModulate);
             node.OffsetLeft = segmentStart > 0 ? Math.Max(0f, startWidth - node.PatchMarginLeft) : 0f;
             var leftOffsetRight = Math.Min(0f, endWidth - maxWidth + node.PatchMarginRight);
             if (rightIndex > 0)
@@ -224,6 +231,7 @@ public static class HealthBarForecastPatch
             hpLabel.AddThemeColorOverride("font_outline_color", DoomLethalOutlineColor);
             return;
         }
+
         hpLabel.AddThemeColorOverride("font_color", lethalColor.Value);
         hpLabel.AddThemeColorOverride("font_outline_color", DarkenForOutline(lethalColor.Value));
     }
@@ -237,7 +245,8 @@ public static class HealthBarForecastPatch
                 registered.Segment.Direction,
                 registered.Segment.Order,
                 registered.SequenceOrder,
-                registered.Segment.OverlayMaterial))
+                registered.Segment.OverlayMaterial,
+                registered.Segment.OverlaySelfModulate))
             .Where(segment => segment.Amount > 0)
             .ToArray();
     }
@@ -310,9 +319,7 @@ public static class HealthBarForecastPatch
             healthBar._hpForeground is not Control hpForeground ||
             healthBar._doomForeground is not Control doomForeground ||
             poisonForeground.GetParent() is not Control mask)
-        {
             return;
-        }
 
         // Right forecast should override poison, but still be clipped by HP.
         var poisonIndex = poisonForeground.GetIndex();
@@ -357,10 +364,18 @@ public static class HealthBarForecastPatch
         }
     }
 
-    private static void ApplyForecastSegmentAppearance(NinePatchRect node, Color color, Material? overlayMaterial)
+    /// <summary>
+    ///     Applies material and <see cref="CanvasItem.SelfModulate" />; overlay modulate defaults to <paramref name="color" />
+    ///     when <paramref name="overlaySelfModulate" /> is null.
+    /// </summary>
+    private static void ApplyForecastSegmentAppearance(
+        NinePatchRect node,
+        Color color,
+        Material? overlayMaterial,
+        Color? overlaySelfModulate)
     {
         node.Material = overlayMaterial;
-        node.SelfModulate = color;
+        node.SelfModulate = overlaySelfModulate ?? color;
     }
 
     private static float GetMaxFgWidth(NHealthBar healthBar)
@@ -402,7 +417,7 @@ public static class HealthBarForecastPatch
             Math.Clamp(color.G * 0.3f, 0f, 1f),
             Math.Clamp(color.B * 0.3f, 0f, 1f));
     }
-    
+
     private static bool IsDoomLethalAfterRight(NHealthBar healthBar, Creature creature)
     {
         var doomAmount = creature.GetPowerAmount<DoomPower>();
@@ -415,8 +430,9 @@ public static class HealthBarForecastPatch
             creature.CurrentHp);
         return hpAfterRight > 0 && doomAmount >= hpAfterRight;
     }
-    
-    private static Color? ResolveLeftLethalColor(Creature creature, int remainingHp, IReadOnlyList<CustomSegment> leftSegments)
+
+    private static Color? ResolveLeftLethalColor(Creature creature, int remainingHp,
+        IReadOnlyList<CustomSegment> leftSegments)
     {
         if (remainingHp <= 0)
             return null;
@@ -426,12 +442,12 @@ public static class HealthBarForecastPatch
         {
             if (segment.Amount <= 0)
                 continue;
-            candidates.Add(new(segment.Amount, segment.Color, segment.Order, segment.SequenceOrder));
+            candidates.Add(new LethalCandidate(segment.Amount, segment.Color, segment.Order, segment.SequenceOrder));
         }
 
         var doomAmount = creature.GetPowerAmount<DoomPower>();
         if (doomAmount > 0)
-            candidates.Add(new(doomAmount, DoomLethalTextColor, 0, long.MinValue / 4));
+            candidates.Add(new LethalCandidate(doomAmount, DoomLethalTextColor, 0, long.MinValue / 4));
 
         if (candidates.Count == 0)
             return null;
@@ -473,8 +489,9 @@ public static class HealthBarForecastPatch
         HealthBarForecastDirection Direction,
         int Order,
         long SequenceOrder,
-        Material? OverlayMaterial);
-    
+        Material? OverlayMaterial,
+        Color? OverlaySelfModulate);
+
     private readonly record struct LethalCandidate(
         int Amount,
         Color Color,

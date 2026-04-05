@@ -5,6 +5,16 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 
 namespace BaseLib.Hooks;
 
+/// <summary>
+///     Aggregates health bar forecast segments from creature powers, registered sources, and optional foreign providers.
+/// </summary>
+/// <remarks>
+///     Typed segments use <see cref="HealthBarForecastSegment" />.
+///     <see cref="RegisterForeign" /> accepts objects with public instance properties:
+///     <c>Amount</c> (<see cref="int" />), <c>Color</c> (<see cref="Godot.Color" />), <c>Direction</c> (enum or string
+///     containing FromLeft/FromRight); optional <c>Order</c> (<see cref="int" />), <c>OverlayMaterial</c>
+///     (<see cref="Godot.Material" />), <c>OverlaySelfModulate</c> (<see cref="Godot.Color" />?).
+/// </remarks>
 public static class HealthBarForecastRegistry
 {
     private static readonly Lock SyncRoot = new();
@@ -12,12 +22,24 @@ public static class HealthBarForecastRegistry
     private static readonly ConcurrentDictionary<Type, ForeignSegmentAccessors?> ForeignSegmentAccessorCache = new();
     private static long _nextRegistrationOrder;
 
+    /// <summary>
+    ///     Registers or replaces a forecast source implemented by <typeparamref name="TSource" />.
+    /// </summary>
+    /// <typeparam name="TSource">Concrete type with a parameterless constructor.</typeparam>
+    /// <param name="modId">Owning mod identifier (for logging and stable keys).</param>
+    /// <param name="sourceId">Optional unique id; defaults to the type's full name.</param>
     public static void Register<TSource>(string modId, string? sourceId = null)
         where TSource : IHealthBarForecastSource, new()
     {
         Register(modId, sourceId ?? typeof(TSource).FullName ?? typeof(TSource).Name, new TSource());
     }
 
+    /// <summary>
+    ///     Registers or replaces a forecast source instance.
+    /// </summary>
+    /// <param name="modId">Owning mod identifier.</param>
+    /// <param name="sourceId">Unique id for this source within the mod.</param>
+    /// <param name="source">Provider instance.</param>
     public static void Register(string modId, string sourceId, IHealthBarForecastSource source)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modId);
@@ -26,6 +48,12 @@ public static class HealthBarForecastRegistry
         RegisterProvider(modId, sourceId, source, null);
     }
 
+    /// <summary>
+    ///     Registers a provider that yields duck-typed segment objects (see class remarks).
+    /// </summary>
+    /// <param name="modId">Owning mod identifier.</param>
+    /// <param name="sourceId">Unique id for this provider within the mod.</param>
+    /// <param name="provider">Returns segment objects per creature; null entries are ignored.</param>
     public static void RegisterForeign(string modId, string sourceId, Func<Creature, IEnumerable<object>> provider)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modId);
@@ -34,6 +62,12 @@ public static class HealthBarForecastRegistry
         RegisterProvider(modId, sourceId, null, provider);
     }
 
+    /// <summary>
+    ///     Removes a previously registered typed or foreign provider.
+    /// </summary>
+    /// <param name="modId">Mod identifier used at registration.</param>
+    /// <param name="sourceId">Source id used at registration.</param>
+    /// <returns><see langword="true" /> if an entry was removed.</returns>
     public static bool Unregister(string modId, string sourceId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modId);
@@ -45,6 +79,10 @@ public static class HealthBarForecastRegistry
         }
     }
 
+    /// <summary>
+    ///     Collects all applicable segments for <paramref name="creature" />, in registration order with sequence keys.
+    /// </summary>
+    /// <param name="creature">Creature whose bar is being evaluated.</param>
     internal static IReadOnlyList<RegisteredHealthBarForecastSegment> GetSegments(Creature creature)
     {
         ArgumentNullException.ThrowIfNull(creature);
@@ -126,13 +164,9 @@ public static class HealthBarForecastRegistry
         try
         {
             var providedSegments = source.GetHealthBarForecastSegments(context);
-            foreach (var segment in providedSegments)
-            {
-                if (segment.Amount <= 0)
-                    continue;
-
-                destination.Add(new RegisteredHealthBarForecastSegment(segment, sequenceOrder));
-            }
+            destination.AddRange(from segment in providedSegments
+                where segment.Amount > 0
+                select new RegisteredHealthBarForecastSegment(segment, sequenceOrder));
         }
         catch (Exception ex)
         {
@@ -173,13 +207,13 @@ public static class HealthBarForecastRegistry
     private static bool TryConvertForeignSegment(object? segment, out HealthBarForecastSegment converted)
     {
         converted = default;
-        if (segment == null)
-            return false;
-
-        if (segment is HealthBarForecastSegment direct)
+        switch (segment)
         {
-            converted = direct;
-            return true;
+            case null:
+                return false;
+            case HealthBarForecastSegment direct:
+                converted = direct;
+                return true;
         }
 
         var accessorOrNull = ForeignSegmentAccessorCache.GetOrAdd(segment.GetType(), CreateForeignSegmentAccessors);
@@ -197,20 +231,21 @@ public static class HealthBarForecastRegistry
             color,
             direction,
             accessors.ReadOrder(segment),
-            accessors.ReadOverlayMaterial(segment));
+            accessors.ReadOverlayMaterial(segment),
+            accessors.ReadOverlaySelfModulate(segment));
         return true;
     }
 
     private static bool TryParseDirection(object? directionValue, out HealthBarForecastDirection direction)
     {
         direction = HealthBarForecastDirection.FromRight;
-        if (directionValue == null)
-            return false;
-
-        if (directionValue is HealthBarForecastDirection typedDirection)
+        switch (directionValue)
         {
-            direction = typedDirection;
-            return true;
+            case null:
+                return false;
+            case HealthBarForecastDirection typedDirection:
+                direction = typedDirection;
+                return true;
         }
 
         var directionName = directionValue.ToString();
@@ -223,13 +258,10 @@ public static class HealthBarForecastRegistry
             return true;
         }
 
-        if (directionName.Contains("FromRight", StringComparison.OrdinalIgnoreCase))
-        {
-            direction = HealthBarForecastDirection.FromRight;
-            return true;
-        }
+        if (!directionName.Contains("FromRight", StringComparison.OrdinalIgnoreCase)) return false;
+        direction = HealthBarForecastDirection.FromRight;
+        return true;
 
-        return false;
     }
 
     private static ForeignSegmentAccessors? CreateForeignSegmentAccessors(Type type)
@@ -239,6 +271,7 @@ public static class HealthBarForecastRegistry
         var direction = type.GetProperty("Direction", BindingFlags.Instance | BindingFlags.Public);
         var order = type.GetProperty("Order", BindingFlags.Instance | BindingFlags.Public);
         var overlayMaterial = type.GetProperty("OverlayMaterial", BindingFlags.Instance | BindingFlags.Public);
+        var overlaySelfModulate = type.GetProperty("OverlaySelfModulate", BindingFlags.Instance | BindingFlags.Public);
 
         if (amount?.PropertyType != typeof(int) ||
             color?.PropertyType != typeof(Color) ||
@@ -249,6 +282,11 @@ public static class HealthBarForecastRegistry
             ? segment => (Material?)overlayMaterial.GetValue(segment)
             : _ => null;
 
+        Func<object, Color?> readOverlaySelfModulate =
+            overlaySelfModulate?.PropertyType == typeof(Color?)
+                ? segment => (Color?)overlaySelfModulate.GetValue(segment)
+                : _ => null;
+
         return new ForeignSegmentAccessors(
             segment => (int)amount.GetValue(segment)!,
             segment => (Color)color.GetValue(segment)!,
@@ -256,9 +294,15 @@ public static class HealthBarForecastRegistry
             order?.PropertyType == typeof(int)
                 ? segment => (int)order.GetValue(segment)!
                 : _ => 0,
-            readOverlay);
+            readOverlay,
+            readOverlaySelfModulate);
     }
 
+    /// <summary>
+    ///     A segment plus a monotonic key used to break ties when <see cref="HealthBarForecastSegment.Order" /> matches.
+    /// </summary>
+    /// <param name="Segment">Typed forecast data.</param>
+    /// <param name="SequenceOrder">Stable ordering among sources (powers first, then registered providers).</param>
     internal readonly record struct RegisteredHealthBarForecastSegment(
         HealthBarForecastSegment Segment,
         long SequenceOrder);
@@ -275,5 +319,6 @@ public static class HealthBarForecastRegistry
         Func<object, Color> ReadColor,
         Func<object, object?> ReadDirection,
         Func<object, int> ReadOrder,
-        Func<object, Material?> ReadOverlayMaterial);
+        Func<object, Material?> ReadOverlayMaterial,
+        Func<object, Color?> ReadOverlaySelfModulate);
 }
