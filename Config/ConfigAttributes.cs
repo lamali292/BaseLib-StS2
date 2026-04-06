@@ -5,7 +5,7 @@
 /// </summary>
 /// <param name="name">The LocString name. Will be transformed just like property names, so for "FirstSection", you need to
 /// specify a value for YOURMOD-FIRST_SECTION.title in the localization file(s).</param>
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
 public class ConfigSectionAttribute(string name) : Attribute
 {
     public string Name { get; } = name;
@@ -57,7 +57,7 @@ public class SliderLabelFormatAttribute(string format) : Attribute
 /// YOURMOD-PROPERTY_NAME.hover.desc (required)
 /// </summary>
 /// <param name="enabled">Enable hover tip for this property. Can be set to false in order to add exceptions for <see cref="HoverTipsByDefaultAttribute"/></param>
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
 public class ConfigHoverTipAttribute(bool enabled = true) : Attribute
 {
     public bool Enabled { get; } = enabled;

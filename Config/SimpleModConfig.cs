@@ -216,7 +216,7 @@ public class SimpleModConfig : ModConfig
             ShowAndClearPendingErrors();
         };
 
-        optionRow = CreateButton(method.Name, attr.ButtonLabelKey, onButtonClicked, true);
+        optionRow = CreateButton(method.Name, attr.ButtonLabelKey, onButtonClicked);
         AddHoverTipToOptionRowIfEnabled(optionRow, method);
         return optionRow;
     }
