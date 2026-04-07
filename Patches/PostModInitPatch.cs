@@ -17,6 +17,8 @@ class PostModInitPatch
     [HarmonyPrefix]
     private static void ProcessModdedTypes()
     {
+        BaseLibMain.Logger.Info("Performing post-mod init patch");
+        
         Harmony harmony = new("PostModInit");
 
         AddCustomEncounters.Patch(harmony);

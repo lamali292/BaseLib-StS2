@@ -234,6 +234,7 @@ public class TheBigPatchToCardPileCmdAdd
 
     public static void Patch(Harmony harmony)
     {
+        BaseLibMain.Logger.Info("Performing CustomPile patch");
         harmony.PatchAsyncMoveNext(AccessTools.Method(typeof(CardPileCmd), nameof(CardPileCmd.Add), 
             [typeof(IEnumerable<CardModel>), typeof(CardPile), typeof(CardPilePosition), typeof(AbstractModel), typeof(bool)]),
             out stateMachineType,

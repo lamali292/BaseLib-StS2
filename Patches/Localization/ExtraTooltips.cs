@@ -6,7 +6,7 @@ using MegaCrit.Sts2.Core.Models;
 
 namespace BaseLib.Patches.Localization;
 
-[HarmonyPatch(typeof(CardModel), "HoverTips", MethodType.Getter)]
+[HarmonyPatch(typeof(CardModel), nameof(CardModel.HoverTips), MethodType.Getter)]
 public class ExtraTooltips
 {
     [HarmonyTranspiler]

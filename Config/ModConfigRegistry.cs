@@ -9,6 +9,8 @@ public static class ModConfigRegistry
         if (!config.HasSettings()) return;
         config.ModId = modId;
         ModConfigs[modId] = config;
+        
+        BaseLibMain.Logger.Info($"Registered config for mod {modId}");
     }
 
     public static ModConfig? Get(string? modId)

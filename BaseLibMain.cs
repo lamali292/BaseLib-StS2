@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using BaseLib.Config;
+using BaseLib.Extensions;
 using BaseLib.Patches.Content;
 using BaseLib.Patches.Utils;
 using BaseLib.Utils.NodeFactories;
@@ -14,10 +15,11 @@ public static class BaseLibMain
 {
     [ThreadStatic]
     public static bool IsMainThread;
-    
     public const string ModId = "BaseLib";
 
     public static MegaCrit.Sts2.Core.Logging.Logger Logger { get; } = new(ModId, MegaCrit.Sts2.Core.Logging.LogType.Generic);
+
+    private static Harmony? _mainHarmony = null;
 
     public static void Initialize()
     {
@@ -35,16 +37,16 @@ public static class BaseLibMain
             Logger.Error(e.ToString());
         }
         
-        Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly(Assembly.GetExecutingAssembly());
+        var assembly = Assembly.GetExecutingAssembly();
+        Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly(assembly);
         
         ModConfigRegistry.Register(ModId, new BaseLibConfig());
         
-        Harmony harmony = new(ModId);
+        _mainHarmony ??= new(ModId);
 
-        GetCustomLocKey.Patch(harmony);
-        TheBigPatchToCardPileCmdAdd.Patch(harmony);
+        TheBigPatchToCardPileCmdAdd.Patch(_mainHarmony);
 
-        harmony.PatchAll();
+        _mainHarmony.TryPatchAll(assembly);
     }
 
     //Hopefully temporary fix for linux
