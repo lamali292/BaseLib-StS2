@@ -23,6 +23,10 @@ class RoomIconPathPatch
                         BaseLibMain.Logger.Info("Using custom ancient room path");
                         __result = ancient.CustomRunHistoryIconPath;
                         return __result == null;
+                    case CustomEncounterModel encounter:
+                        BaseLibMain.Logger.Info("Using custom encounter room path");
+                        __result = encounter.CustomRunHistoryIconPath;
+                        return __result == null;
                 }
             }
 
@@ -43,6 +47,10 @@ class RoomIconPathPatch
                     case CustomAncientModel ancient:
                         BaseLibMain.Logger.Info("Using custom ancient outline path");
                         __result = ancient.CustomRunHistoryIconOutlinePath;
+                        return __result == null;
+                    case CustomEncounterModel encounter:
+                        BaseLibMain.Logger.Info("Using custom encounter outline path");
+                        __result = encounter.CustomRunHistoryIconOutlinePath;
                         return __result == null;
                 }
             }

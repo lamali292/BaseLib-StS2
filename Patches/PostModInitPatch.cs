@@ -10,7 +10,8 @@ using MegaCrit.Sts2.Core.Saves.Runs;
 
 namespace BaseLib.Patches;
 
-//Simplest patch that occurs after mod initialization, before anything else is done
+//Simplest patch that occurs after mod initialization, before anything else is done.
+//See OneTimeInitialization.ExecuteEssential
 [HarmonyPatch(typeof(LocManager), nameof(LocManager.Initialize))] 
 class PostModInitPatch
 {
@@ -21,7 +22,7 @@ class PostModInitPatch
         
         Harmony harmony = new("PostModInit");
 
-        AddCustomEncounters.Patch(harmony);
+        AddActContent.Patch(harmony);
         
 
         ModInterop interop = new();

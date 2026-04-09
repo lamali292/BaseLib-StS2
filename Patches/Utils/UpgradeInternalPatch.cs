@@ -1,4 +1,5 @@
-﻿using BaseLib.Extensions;
+﻿using BaseLib.Abstracts;
+using BaseLib.Extensions;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Models;
@@ -6,7 +7,7 @@ using MegaCrit.Sts2.Core.Models;
 namespace BaseLib.Patches.Utils;
 
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.UpgradeInternal))]
-class DynamicVarWithUpgradePatch
+class UpgradeInternalPatch
 {
     [HarmonyTranspiler]
     static List<CodeInstruction> InsertVarUpgrade(IEnumerable<CodeInstruction> code)
@@ -15,7 +16,7 @@ class DynamicVarWithUpgradePatch
             .Match(new CallMatcher(AccessTools.Method(typeof(CardModel), "OnUpgrade")))
             .Insert([
                 CodeInstruction.LoadArgument(0),
-                CodeInstruction.Call(typeof(DynamicVarWithUpgradePatch), nameof(UpgradeVars))
+                CodeInstruction.Call(typeof(UpgradeInternalPatch), nameof(UpgradeVars))
             ]);
     }
 
@@ -29,5 +30,7 @@ class DynamicVarWithUpgradePatch
                 varEntry.Value.UpgradeValueBy((decimal) upgradeValue);
             }
         }
+        if (card is not ConstructedCardModel constructed) return;
+        constructed.ConstructedUpgrade();
     }
 }

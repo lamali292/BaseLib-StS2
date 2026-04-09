@@ -109,6 +109,46 @@ public record EncounterLoc(string Title, string LossText, params (string, string
     ];
 }
 
+/// Event Localization
+public record EventLoc(string Title, params EventPageLoc[] Pages)
+{
+    public static implicit operator List<(string, string)>(EventLoc loc) =>
+    [
+        ("title", loc.Title),
+        ..loc.Pages.SelectMany(page => (List<(string, string)>)page)
+    ];
+}
+
+public record EventPageLoc(string PageKey, string Description, params EventOptionLoc[] Options)
+{
+    public static implicit operator List<(string, string)>(EventPageLoc loc)
+    {
+        List<(string, string)> result = [];
+        
+        result.Add(($"pages.{loc.PageKey}.description", loc.Description));
+        foreach (var optionLoc in loc.Options)
+        {
+            result.AddRange(optionLoc.Create(loc));
+        }
+        return result;
+    }
+}
+
+/// <summary>
+/// Used as a parameter of EventPageLoc
+/// </summary>
+/// <param name="OptionKey">Name of option; expected to be all caps version of method passed as option task</param>
+/// <param name="Title">Option name</param>
+/// <param name="Description">Option text</param>
+public record EventOptionLoc(string OptionKey, string Title, string Description)
+{
+    public IEnumerable<(string, string)> Create(EventPageLoc page)
+    {
+        yield return ($"pages.{page.PageKey}.options.{OptionKey}.title", Title);
+        yield return ($"pages.{page.PageKey}.options.{OptionKey}.description", Description);
+    }
+}
+
 /// <summary>
 /// For use with ILocalizationProvider.<seealso cref="ILocalizationProvider"/>
 /// Localization for a run modifier.

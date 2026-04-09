@@ -18,7 +18,18 @@ public abstract class ConstructedCardModel(
     bool autoAdd = true)
     : CustomCardModel(baseCost, type, rarity, target, showInCardLibrary, autoAdd)
 {
+    protected enum UpgradeType
+    {
+        None,
+        Add,
+        Remove
+    }
+    
     private readonly List<CardKeyword> _cardKeywords = [];
+    /// <summary>
+    /// Keywords that will be modified on upgrade.
+    /// </summary>
+    protected readonly List<(CardKeyword, UpgradeType)> UpgradeKeywords = [];
     private readonly List<DynamicVar> _constructedDynamicVars = [];
     private readonly List<TooltipSource> _hoverTips = [];
     private readonly HashSet<CardTag> _constructedTags = [];
@@ -183,6 +194,9 @@ public abstract class ConstructedCardModel(
         _constructedDynamicVars.Add(var.WithMultiplier(mult));
     }
 
+    /// <summary>
+    /// Adds multiple keywords to the card.
+    /// </summary>
     protected ConstructedCardModel WithKeywords(params CardKeyword[] keywords)
     {
         _cardKeywords.AddRange(keywords);
@@ -190,7 +204,28 @@ public abstract class ConstructedCardModel(
     }
 
     /// <summary>
-    /// Can accept PowerModel, CardKeyword, CardModel, PotionModel
+    /// Adds a keyword to the card. If <paramref name="removeOnUpgrade"/> is true, the keyword will be removed when the card is upgraded.
+    /// </summary>
+    protected ConstructedCardModel WithKeyword(CardKeyword keyword, UpgradeType upgradeType = UpgradeType.None)
+    {
+        if (upgradeType != UpgradeType.Add) _cardKeywords.Add(keyword);
+        if (upgradeType != UpgradeType.None) UpgradeKeywords.Add((keyword, upgradeType));
+        return this;
+    }
+
+    internal int? CostUpgrade;
+
+    /// <summary>
+    /// Adjusts the card's energy cost when upgraded. Use negative values to reduce cost, positive to increase.
+    /// </summary>
+    protected ConstructedCardModel WithCostUpgradeBy(int amount)
+    {
+        CostUpgrade = amount;
+        return this;
+    }
+
+    /// <summary>
+    /// Can accept PowerModel, CardKeyword, CardModel, PotionModel, StaticHoverTip, EnchantmentModel
     /// </summary>
     /// <param name="tipSource"></param>
     /// <returns></returns>
@@ -199,9 +234,31 @@ public abstract class ConstructedCardModel(
         _hoverTips.Add(tipSource);
         return this;
     }
+    
     protected ConstructedCardModel WithEnergyTip()
     {
         _hoverTips.Add(new(HoverTipFactory.ForEnergy));
         return this;
+    }
+    
+    /// <summary>
+    /// Called after the card's normal upgrade to handle upgrades declared in the ConstructedCardModel.
+    /// </summary>
+    public void ConstructedUpgrade()
+    {
+        foreach (var keyword in UpgradeKeywords)
+        {
+            switch (keyword.Item2)
+            {
+                case UpgradeType.Add:
+                    AddKeyword(keyword.Item1);
+                    break;
+                case UpgradeType.Remove:
+                    RemoveKeyword(keyword.Item1);
+                    break;
+            }
+        }
+        if (CostUpgrade.HasValue)
+            EnergyCost.UpgradeBy(CostUpgrade.Value);
     }
 }

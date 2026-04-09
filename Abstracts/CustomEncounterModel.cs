@@ -1,5 +1,5 @@
 ﻿using BaseLib.Patches.Content;
-using BaseLib.Utils;
+using BaseLib.Patches.UI;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Models;
@@ -93,6 +93,11 @@ public abstract class CustomEncounterModel : EncounterModel, ICustomModel
         return null;
     }
     
+    /// <summary>
+    /// See RoomIconPathPatch<seealso cref="RoomIconPathPatch"/>
+    /// </summary>
+    public virtual string? CustomRunHistoryIconPath => null;
+    public virtual string? CustomRunHistoryIconOutlinePath => null;
     
     
     [HarmonyPatch(typeof(EncounterModel), nameof(EncounterModel.ScenePath), MethodType.Getter)]

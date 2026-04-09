@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using BaseLib.Abstracts;
 using BaseLib.Utils;
+using BaseLib.Utils.Patching;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Modding;
@@ -18,6 +19,14 @@ public static class CustomContentDictionary
     private static readonly Dictionary<Type, Type> PoolTypes = [];
     public static readonly List<CustomEncounterModel> CustomEncounters = [];
     public static readonly List<CustomAncientModel> CustomAncients = [];
+    /// <summary>
+    /// Custom events tied to a specific act.
+    /// </summary>
+    public static readonly List<CustomEventModel> ActCustomEvents = [];
+    /// <summary>
+    /// Custom events not tied to a specific act.
+    /// </summary>
+    public static readonly List<CustomEventModel> SharedCustomEvents = [];
     
     static CustomContentDictionary()
     {
@@ -58,6 +67,20 @@ public static class CustomContentDictionary
         if (!RegisterType(ancient.GetType())) return;
         
         CustomAncients.Add(ancient);
+    }
+    
+    public static void AddEvent(CustomEventModel eventModel)
+    {
+        if (!RegisterType(eventModel.GetType())) return;
+
+        if (eventModel.IsShared)
+        {
+            SharedCustomEvents.Add(eventModel);
+        }
+        else
+        {
+            ActCustomEvents.Add(eventModel);
+        }
     }
     
     
@@ -208,44 +231,87 @@ class ActModelGenerateRoomsPatch
     }
 }
 
+[HarmonyPatch(typeof(ModelDb), nameof(ModelDb.AllSharedEvents), MethodType.Getter)]
+class CustomSharedEvents
+{
+    [HarmonyTranspiler]
+    static List<CodeInstruction> AddCustomShared(IEnumerable<CodeInstruction> code)
+    {
+        return new InstructionPatcher(code)
+            .Match(new InstructionMatcher()
+                .dup()
+                .stsfld(null))
+            .Step(-2)
+            .Insert(CodeInstruction.Call(typeof(CustomSharedEvents), nameof(ConcatCustom)));
+    }
+
+    static IEnumerable<EventModel> ConcatCustom(IEnumerable<EventModel> events)
+    {
+        var result = new List<EventModel>(events);
+        result.AddRange(CustomContentDictionary.SharedCustomEvents);
+        return result;
+    }
+}
+
 /// <summary>
 /// Called in PostModInitPatch to catch modded acts
 /// </summary>
-public static class AddCustomEncounters
+public static class AddActContent
 {
     public static void Patch(Harmony harmony)
     {
-        StringBuilder patchedTypes = new("Patching act types for custom encounters");
-        //TODO - Also patch custom events here?
+        StringBuilder patchedTypes = new("Patching act types for custom encounters and events");
         
-        foreach (var t in ReflectionHelper.GetSubtypes<ActModel>()) {
+        foreach (var t in ReflectionHelper.GetSubtypes<ActModel>()
+                     .Chain(ReflectionHelper.GetSubtypesInMods<ActModel>()))
+        {
+            bool patched = false;
             var method = AccessTools.DeclaredMethod(t, nameof(ActModel.GenerateAllEncounters));
-            if (method == null) continue;
+            if (method != null)
+            {
+                patched = true;
+                harmony.Patch(method, postfix: AccessTools.Method(typeof(AddActContent), nameof(AddCustomEncounters)));
+            }
 
-            patchedTypes.Append(" | ").Append(t.Name);
-            harmony.Patch(method, postfix: AccessTools.Method(typeof(AddCustomEncounters), nameof(AddCustom)));
-        }
-        foreach (var t in ReflectionHelper.GetSubtypesInMods<ActModel>()) {
-            var method = AccessTools.DeclaredMethod(t, nameof(ActModel.GenerateAllEncounters));
-            if (method == null) continue;
+            method = AccessTools.DeclaredPropertyGetter(t, nameof(ActModel.AllEvents));
+            if (method != null)
+            {
+                patched = true;
+                harmony.Patch(method, postfix: AccessTools.Method(typeof(AddActContent), nameof(AddCustomEvents)));
+            }
 
-            patchedTypes.Append(" | ").Append(t.Name);
-            harmony.Patch(method, postfix: AccessTools.Method(typeof(AddCustomEncounters), nameof(AddCustom)));
+            if (patched)
+            {
+                patchedTypes.Append(" | ").Append(t.Name);
+            }
         }
 
         BaseLibMain.Logger.Info(patchedTypes.ToString());
     }
 
-    static IEnumerable<EncounterModel> AddCustom(IEnumerable<EncounterModel> result, ActModel __instance)
+    static IEnumerable<EncounterModel> AddCustomEncounters(IEnumerable<EncounterModel> result, ActModel __instance)
     {
         foreach (var value in result)
         {
             yield return value;
         }
 
-        foreach (CustomEncounterModel encounter in CustomContentDictionary.CustomEncounters)
+        foreach (var encounter in CustomContentDictionary.CustomEncounters)
         {
             if (encounter.IsValidForAct(__instance)) yield return encounter;
+        }
+    }
+
+    static IEnumerable<EventModel> AddCustomEvents(IEnumerable<EventModel> result, ActModel __instance)
+    {
+        foreach (var value in result)
+        {
+            yield return value;
+        }
+
+        foreach (var eventModel in CustomContentDictionary.ActCustomEvents)
+        {
+            if (eventModel.Acts.Contains(__instance)) yield return eventModel;
         }
     }
 }

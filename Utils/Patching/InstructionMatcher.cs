@@ -534,9 +534,13 @@ public class InstructionMatcher() : IMatcher
         return this;
     }
 /*Ldsfld = 0x7e,
-Ldsflda = 0x7f,
-Stsfld = 0x80,
-Stobj = 0x81,
+Ldsflda = 0x7f,*/
+    public InstructionMatcher stsfld(FieldInfo? field) //0x80
+    {
+        _target.Add(new(OpCodes.Stsfld, field));
+        return this;
+    }
+/*Stobj = 0x81,
 Conv_Ovf_I1_Un = 0x82,
 Conv_Ovf_I2_Un = 0x83,
 Conv_Ovf_I4_Un = 0x84,

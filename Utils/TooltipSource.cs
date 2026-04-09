@@ -29,6 +29,10 @@ public class TooltipSource
         {
             return new((card)=>HoverTipFactory.FromPotion(ModelDb.GetById<PotionModel>(ModelDb.GetId(t))));
         }
+        if (t.IsAssignableTo(typeof(EnchantmentModel)))
+        {
+            return new((card) => ModelDb.GetById<EnchantmentModel>(ModelDb.GetId(t)).HoverTip);
+        }
         throw new Exception($"Unable to generate hovertip from type {t}");
     }
     public static implicit operator TooltipSource(CardKeyword keyword) => new((card)=>HoverTipFactory.FromKeyword(keyword));
