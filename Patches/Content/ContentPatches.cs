@@ -73,7 +73,7 @@ public static class CustomContentDictionary
     {
         if (!RegisterType(eventModel.GetType())) return;
 
-        if (eventModel.IsShared)
+        if (eventModel.Acts.Length == 0)
         {
             SharedCustomEvents.Add(eventModel);
         }

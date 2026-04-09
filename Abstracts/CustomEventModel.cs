@@ -19,13 +19,13 @@ public abstract class CustomEventModel : EventModel, ICustomModel, ILocalization
     //Note - most shared events define an IsAllowed condition that check runState.CurrentActIndex
     //Until all possible events in an act are seen, events already seen in a run will be skipped
     public virtual ActModel[] Acts => [];
-    public override bool IsShared => Acts.Length == 0;
 
     /*
      Additional relevant overrides:
      LayoutType
      CanonicalEncounter (fight event)
      IsAllowed - Spawn condition
+     IsShared - events where all players must take same options. Required for combat events.
      CanonicalVars/CalculateVars
     */
 
