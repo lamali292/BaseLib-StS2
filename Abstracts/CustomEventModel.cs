@@ -10,16 +10,15 @@ namespace BaseLib.Abstracts;
 
 public abstract class CustomEventModel : EventModel, ICustomModel, ILocalizationProvider
 {
-    public readonly ActModel[] Acts;
-
-    public CustomEventModel(params ActModel[] acts)
+    public CustomEventModel(bool autoAdd)
     {
-        Acts = acts;
-        CustomContentDictionary.AddEvent(this);
+        if (autoAdd)
+            CustomContentDictionary.AddEvent(this);
     }
 
     //Note - most shared events define an IsAllowed condition that check runState.CurrentActIndex
     //Until all possible events in an act are seen, events already seen in a run will be skipped
+    public virtual ActModel[] Acts => [];
     public override bool IsShared => Acts.Length == 0;
 
     /*
