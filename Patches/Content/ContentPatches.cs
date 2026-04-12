@@ -19,6 +19,7 @@ public static class CustomContentDictionary
     private static readonly Dictionary<Type, Type> PoolTypes = [];
     public static readonly List<CustomEncounterModel> CustomEncounters = [];
     public static readonly List<CustomAncientModel> CustomAncients = [];
+    public static readonly List<Type> CustomBadgeTypes = [];
     /// <summary>
     /// Custom events tied to a specific act.
     /// </summary>
@@ -83,6 +84,13 @@ public static class CustomContentDictionary
         }
     }
     
+ 
+    public static bool AddBadge(Type badgeType)
+    {
+        if (!RegisterType(badgeType)) return false;
+        CustomBadgeTypes.Add(badgeType);
+        return true;
+    }
     
     private static bool IsValidPool(Type modelType, Type poolType)
     {
@@ -97,7 +105,22 @@ public static class CustomContentDictionary
         }
         throw new Exception($"Model {modelType.FullName} is assigned to {poolType.FullName} which is not a valid pool type.");
     }
+    
+    [HarmonyPostfix]
+    static void ScanCustomBadges()
+    {
+        foreach (var type in ReflectionHelper.GetSubtypesInMods<CustomBadge>()
+                     .Where(t => !t.IsAbstract))
+        {
+            BaseLibMain.Logger.Info($"[CustomBadge] Found type: {type.FullName}");
+            var added = AddBadge(type);
+            BaseLibMain.Logger.Info($"[CustomBadge] Added: {added} | Total: {CustomBadgeTypes.Count}");
+        }
+    }
 }
+
+
+
 
 [HarmonyPatch(typeof(ModelDb), nameof(ModelDb.AllSharedAncients), MethodType.Getter)]
 class CustomAncientExistence
