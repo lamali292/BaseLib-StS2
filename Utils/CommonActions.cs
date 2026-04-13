@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace BaseLib.Utils;
 
@@ -148,6 +149,23 @@ public static class CommonActions
     public static async Task<decimal> CardBlock(CardModel card, BlockVar blockVar, CardPlay play)
     {
         return await CreatureCmd.GainBlock(card.Owner.Creature, blockVar, play);
+    }
+
+    /// <summary>
+    /// Gains Block based on the given DynamicVar (supports CalculatedBlockVar)
+    /// </summary>
+    /// <param name="card"></param>
+    /// <param name="var"></param>
+    /// <param name="play"></param>
+    /// <param name="fast"></param>
+    /// <returns></returns>
+    public static async Task<decimal> CardBlock(CardModel card, DynamicVar var, CardPlay play, bool fast = false)
+    {
+        if (var is CalculatedBlockVar calculated)
+        {
+            return await CreatureCmd.GainBlock(card.Owner.Creature, calculated.Calculate(play.Target), calculated.Props, play, fast);
+        }
+        return await CreatureCmd.GainBlock(card.Owner.Creature, var.BaseValue, (var as BlockVar)?.Props ?? ValueProp.Move, play, fast);
     }
 
     /// <summary>

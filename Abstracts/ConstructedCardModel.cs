@@ -1,4 +1,5 @@
-﻿using BaseLib.Extensions;
+﻿using BaseLib.Cards.Variables;
+using BaseLib.Extensions;
 using BaseLib.Utils;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
@@ -33,7 +34,6 @@ public abstract class ConstructedCardModel(
     private readonly List<DynamicVar> _constructedDynamicVars = [];
     private readonly List<TooltipSource> _hoverTips = [];
     private readonly HashSet<CardTag> _constructedTags = [];
-    private bool _hasCalculatedVar = false;
 
     protected sealed override IEnumerable<DynamicVar> CanonicalVars => _constructedDynamicVars;
     public sealed override IEnumerable<CardKeyword> CanonicalKeywords => _cardKeywords;
@@ -116,15 +116,15 @@ public abstract class ConstructedCardModel(
         return this;
     }
 
-    //TODO - setup arbitrary number of calculated variables
-    //set upgrade for bonus also?
+    private bool _hasBasegameCalculatedVar = false;
+    
     /// <summary>
     /// Variable value is baseVal + bonus
     /// </summary>
     protected ConstructedCardModel WithCalculatedVar(string name, int baseVal, 
         Func<CardModel, Creature?, decimal> bonus, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedVar(name), baseVal, 1, bonus, upgrade, bonusUpgrade);
+        SetupCalculatedVar(new CustomCalculatedVar(name), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
 
@@ -134,7 +134,7 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithCalculatedVar(string name, int baseVal, int multVal,
         Func<CardModel, Creature?, decimal> mult, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedVar(name), baseVal, multVal, mult, upgrade, bonusUpgrade);
+        SetupCalculatedVar(new CustomCalculatedVar(name), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
     
@@ -145,6 +145,11 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithCalculatedBlock(int baseVal, Func<CardModel, Creature?, decimal> bonus, 
         ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
+        if (_hasBasegameCalculatedVar)
+            throw new Exception("CardModel only supports a single normal calculated var; " +
+                                "use WithCalculatedBlock while providing a custom name to use" +
+                                "CustomCalculatedBlockVar instead");
+        _hasBasegameCalculatedVar = true;
         SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
@@ -155,7 +160,31 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithCalculatedBlock(int baseVal, int multVal,
         Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
+        if (_hasBasegameCalculatedVar)
+            throw new Exception("CardModel only supports a single normal calculated var; " +
+                                "use WithCalculatedBlock while providing a custom name to use" +
+                                "CustomCalculatedBlockVar instead");
+        _hasBasegameCalculatedVar = true;
         SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, multVal, mult, upgrade, bonusUpgrade);
+        return this;
+    }
+    
+    /// <summary>
+    /// Variable value is baseVal + bonus
+    /// </summary>
+    protected ConstructedCardModel WithCalculatedBlock(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus, 
+        ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
+    {
+        SetupCalculatedVar(new CustomCalculatedBlockVar(name, props), baseVal, 1, bonus, upgrade, bonusUpgrade);
+        return this;
+    }
+    /// <summary>
+    /// Variable value is baseVal + (multVal * mult)
+    /// </summary>
+    protected ConstructedCardModel WithCalculatedBlock(string name, int baseVal, int multVal,
+        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
+    {
+        SetupCalculatedVar(new CustomCalculatedBlockVar(name, props), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
     
@@ -166,6 +195,11 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithCalculatedDamage(int baseVal, Func<CardModel, Creature?, decimal> bonus, 
         ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
+        if (_hasBasegameCalculatedVar)
+            throw new Exception("CardModel only supports a single normal calculated var; " +
+                                "use WithCalculatedDamage while providing a custom name to use" +
+                                "CustomCalculatedBlockVar instead");
+        _hasBasegameCalculatedVar = true;
         SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
@@ -176,21 +210,60 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithCalculatedDamage(int baseVal, int multVal,
         Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
+        if (_hasBasegameCalculatedVar)
+            throw new Exception("CardModel only supports a single normal calculated var; " +
+                                "use WithCalculatedDamage while providing a custom name to use" +
+                                "CustomCalculatedDamageVar instead");
+        _hasBasegameCalculatedVar = true;
         SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, multVal, mult, upgrade, bonusUpgrade);
+        return this;
+    }
+    
+    /// <summary>
+    /// Variable value is baseVal + bonus
+    /// </summary>
+    protected ConstructedCardModel WithCalculatedDamage(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus, 
+        ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
+    {
+        SetupCalculatedVar(new CustomCalculatedDamageVar(name, props), baseVal, 1, bonus, upgrade, bonusUpgrade);
+        return this;
+    }
+    /// <summary>
+    /// Variable value is baseVal + (multVal * mult)
+    /// </summary>
+    protected ConstructedCardModel WithCalculatedDamage(string name, int baseVal, int multVal,
+        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
+    {
+        if (_hasBasegameCalculatedVar)
+            throw new Exception("CardModel only supports a single normal calculated var; " +
+                                "use WithCalculatedDamage while providing a custom name to use" +
+                                "CustomCalculatedDamageVar instead");
+        _hasBasegameCalculatedVar = true;
+        SetupCalculatedVar(new CustomCalculatedDamageVar(name, props), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
 
     private void SetupCalculatedVar(CalculatedVar var, int baseVal, int multVal,
         Func<CardModel, Creature?, decimal> mult, int upgrade, int bonusUpgrade)
     {
-        if (_hasCalculatedVar) throw new Exception("Cards only support one calculated variable currently");
-        _hasCalculatedVar = true;
+        switch (var)
+        {
+            case CustomCalculatedVar:
+            case CustomCalculatedBlockVar:
+            case CustomCalculatedDamageVar:
+                _constructedDynamicVars.Add(new DynamicVar($"{var.Name}Base", baseVal).WithUpgrade(upgrade));
+                _constructedDynamicVars.Add(new DynamicVar($"{var.Name}Extra", multVal).WithUpgrade(bonusUpgrade));
+                break;
+            case CalculatedDamageVar:
+                _constructedDynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));
+                _constructedDynamicVars.Add(new ExtraDamageVar(multVal).WithUpgrade(bonusUpgrade));
+                break;
+            default:
+                _constructedDynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));
+                _constructedDynamicVars.Add(new CalculationExtraVar(multVal).WithUpgrade(bonusUpgrade));
+                break;
+        }
 
-        _constructedDynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));
-        _constructedDynamicVars.Add(var is CalculatedDamageVar
-            ? new ExtraDamageVar(multVal).WithUpgrade(bonusUpgrade)
-            : new CalculationExtraVar(multVal).WithUpgrade(bonusUpgrade));
-        
         _constructedDynamicVars.Add(var.WithMultiplier(mult));
     }
 

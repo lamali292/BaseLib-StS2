@@ -29,8 +29,7 @@ public class OpenLogWindow : AbstractConsoleCmd
         
         Window window = instance.GetWindow();
         window.GuiEmbedSubwindows = false;
-        
-        var scene = PreloadManager.Cache.GetScene("res://BaseLib/scenes/LogWindow.tscn").Instantiate<NLogWindow>();
+        var scene = ResourceLoader.Load<PackedScene>("res://BaseLib/scenes/LogWindow.tscn").Instantiate<NLogWindow>();
 
         // Prevent flicker on open (open in the final position)
         scene.Visible = false;

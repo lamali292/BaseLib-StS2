@@ -232,6 +232,7 @@ public abstract class NodeFactory
     {
         new ControlFactory();
         new NCreatureVisualsFactory();
+        new NRestSiteCharacterFactory();
         new NMerchantCharacterFactory();
         new NEnergyCounterFactory();
     }
