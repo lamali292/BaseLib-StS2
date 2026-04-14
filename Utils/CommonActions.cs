@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace BaseLib.Utils;
 
@@ -151,6 +152,23 @@ public static class CommonActions
     }
 
     /// <summary>
+    /// Gains Block based on the given DynamicVar (supports CalculatedBlockVar)
+    /// </summary>
+    /// <param name="card"></param>
+    /// <param name="var"></param>
+    /// <param name="play"></param>
+    /// <param name="fast"></param>
+    /// <returns></returns>
+    public static async Task<decimal> CardBlock(CardModel card, DynamicVar var, CardPlay play, bool fast = false)
+    {
+        if (var is CalculatedBlockVar calculated)
+        {
+            return await CreatureCmd.GainBlock(card.Owner.Creature, calculated.Calculate(play.Target), calculated.Props, play, fast);
+        }
+        return await CreatureCmd.GainBlock(card.Owner.Creature, var.BaseValue, (var as BlockVar)?.Props ?? ValueProp.Move, play, fast);
+    }
+
+    /// <summary>
     /// Draws cards based on the card's CardsVar<seealso cref="CardsVar"/>.
     /// </summary>
     /// <returns></returns>
@@ -218,7 +236,15 @@ public static class CommonActions
     {
         CardSelectorPrefs prefs = new(selectionPrompt, count);
         var pile = pileType.GetPile(card.Owner);
-        return await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
     }
     
     /// <summary>
@@ -229,7 +255,15 @@ public static class CommonActions
     {
         CardSelectorPrefs prefs = new(selectionPrompt, minCount, maxCount);
         var pile = pileType.GetPile(card.Owner);
-        return await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
     }
 
     /// <summary>
@@ -239,7 +273,15 @@ public static class CommonActions
     public static async Task<CardModel?> SelectSingleCard(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType)
     {
         CardSelectorPrefs prefs = new(selectionPrompt, 1);
-        CardPile pile = pileType.GetPile(card.Owner);
-        return (await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs)).FirstOrDefault();
+        var pile = pileType.GetPile(card.Owner);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return (await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs)).FirstOrDefault();
     }
 }

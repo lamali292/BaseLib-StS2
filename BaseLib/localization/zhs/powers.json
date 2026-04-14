@@ -1,0 +1,9 @@
+﻿{
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.title": "临时能力",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.description": "使生物临时获得能力。",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.smartDescription": "使生物临时获得能力。",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.UP.description": "在一段时间内提升[gold]能力[/gold]。",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.UP.smartDescription": "获得[blue]{Amount:abs()}[/blue]层[gold]{TemporaryPowerTitle}[/gold]，持续到你的{UntilEndOfOtherSideTurn:cond:|敌人}回合结束。{Repeat:cond:>0?\\n额外持续[blue]{Repeat:diff()}[/blue]个回合。|}",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.DOWN.description": "在一段时间内降低[gold]能力[/gold]。",
+  "BASELIB-CUSTOM_TEMPORARY_POWER_MODEL.DOWN.smartDescription": "失去[blue]{Amount:abs()}[/blue]层[gold]{TemporaryPowerTitle}[/gold]，持续到你的{UntilEndOfOtherSideTurn:cond:|敌人}回合结束。{Repeat:cond:>0?\\n额外持续[blue]{Repeat:diff()}[/blue]个回合。|}"
+}

@@ -1,5 +1,7 @@
 using System.Numerics;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using BaseLib.Abstracts;
 using BaseLib.Extensions;
 using BaseLib.Patches.Localization;
@@ -78,16 +80,59 @@ public static class CustomKeywords
 
 public static class CustomEnums
 {
+    private static readonly HashAlgorithm MD5 = System.Security.Cryptography.MD5.Create(); //Not for security, just for comparison.
+    private static readonly Dictionary<string, int> HashDict = [];
+    private static readonly HashSet<int> ExistingHashes = [];
     private static readonly Dictionary<Type, KeyGenerator> KeyGenerators = [];
-
-    public static object GenerateKey(Type enumType)
+    
+    public static T GenerateKey<T>(string @namespace, string name) where T : Enum
+    {
+        return (T)GenerateKey(typeof(T), @namespace, name);
+    }
+    
+    public static object GenerateKey(FieldInfo field)
+    {
+        return GenerateKey(field.FieldType, field.DeclaringType!.GetRootNamespace(), field.Name);
+    }
+    
+    public static object GenerateKey(Type enumType, string @namespace, string name)
     {
         if (!KeyGenerators.TryGetValue(enumType, out var generator))
         {
             KeyGenerators.Add(enumType, generator = new(enumType));
         }
-        return generator.GetKey();
+    
+        return generator.GetKey(ComputeBasicHash(@namespace), ComputeBasicHash(name));
     }
+
+    private static int ComputeBasicHash(string s)
+    {
+        if (!HashDict.TryGetValue(s, out var hash))
+        {
+            var data = MD5.ComputeHash(Encoding.UTF8.GetBytes(s));
+            unchecked
+            {
+                const int p = 16777619;
+            
+                hash = (int)2166136261;
+                for (int i = 0; i < data.Length; i++)
+                    hash = (hash ^ data[i]) * p;
+                HashDict[s] = hash;
+                if (ExistingHashes.Add(hash)) return hash;
+                
+                foreach (var entry in HashDict)
+                {
+                    if (entry.Value.Equals(hash))
+                    {
+                        BaseLibMain.Logger.Warn($"Duplicate mod hash for {entry.Key} and {s}: {hash}");
+                    }
+                }
+                return hash;
+            }
+        }
+        return hash;
+    }
+    
     private class KeyGenerator
     {
         private static readonly Dictionary<Type, Func<object, object>> Incrementers = new()
@@ -114,6 +159,18 @@ public static class CustomEnums
             { typeof(ulong), FlagIncrementer<ulong>() },
         };
 
+        private static readonly Dictionary<Type, int> TypeHalfSizes = new()
+        {
+            { typeof(byte), sizeof(byte) * 4 },
+            { typeof(sbyte), sizeof(sbyte) * 4 },
+            { typeof(short), sizeof(short) * 4 },
+            { typeof(ushort), sizeof(ushort) * 4 },
+            { typeof(int), sizeof(int) * 4 },
+            { typeof(uint), sizeof(uint) * 4 },
+            { typeof(long), sizeof(long) * 4 },
+            { typeof(ulong), sizeof(ulong) * 4 },
+        };
+
         private static Func<object, object> FlagIncrementer<T>() where T : struct, IBinaryInteger<T>
         {
             return val =>
@@ -125,8 +182,13 @@ public static class CustomEnums
             };
         }
 
+        private Type _underlyingType;
         private object _nextKey;
+        private bool _isFlag;
+        private int _halfBits;
         private readonly Func<object, object> _increment;
+
+        private HashSet<object> _values = [];
 
         public KeyGenerator(Type t)
         {
@@ -136,18 +198,20 @@ public static class CustomEnums
                 throw new ArgumentException("Attempted to construct KeyGenerator with non-enum type " + t.FullName);
             }
             
-            var isFlags = t.GetCustomAttribute<FlagsAttribute>() != null;
+            _isFlag = t.GetCustomAttribute<FlagsAttribute>() != null;
             var values = t.GetEnumValuesAsUnderlyingType();
-            var underlyingType = Enum.GetUnderlyingType(t);
+            _underlyingType = Enum.GetUnderlyingType(t);
 
-            _nextKey = Convert.ChangeType(0, underlyingType);
+            _nextKey = Convert.ChangeType(0, _underlyingType);
             
-            _increment = isFlags ? FlagIncrementers[underlyingType] : Incrementers[underlyingType];
+            _increment = _isFlag ? FlagIncrementers[_underlyingType] : Incrementers[_underlyingType];
+            _halfBits = TypeHalfSizes[_underlyingType];
 
             if (values.Length > 0)
             {
                 foreach (var v in values)
                 {
+                    _values.Add(v);
                     if (((IComparable)v).CompareTo(_nextKey) >= 0)
                     {
                         _nextKey = _increment(v);
@@ -155,14 +219,29 @@ public static class CustomEnums
                 }
             }
             
-            BaseLibMain.Logger.Info($"Generated KeyGenerator for enum {t.FullName} with starting value {_nextKey} (IsFlags: {isFlags})");
+            BaseLibMain.Logger.Info($"Generated KeyGenerator for enum {t.FullName} with starting value {_nextKey} | IsFlag: {_isFlag} | Half-Size: {_halfBits}");
         }
 
-        public object GetKey()
+        public object GetKey(int namespaceHash, int nameHash)
         {
-            var returnVal = _nextKey;
-            _nextKey = _increment(_nextKey);
-            return returnVal;
+            if (_isFlag)
+            {
+                var returnVal = _nextKey;
+                _nextKey = _increment(_nextKey);
+                return returnVal;
+            }
+
+            int upper = namespaceHash & ((1 << _halfBits) - 1),
+                lower = nameHash & ((1 << _halfBits) - 1);
+            
+            /*BaseLibMain.Logger.Info($"{Convert.ToString(namespaceHash, 2)} | {Convert.ToString(nameHash, 2)}");
+            BaseLibMain.Logger.Info($"{Convert.ToString(upper, 2)} | {Convert.ToString(lower, 2)}");*/
+
+            var result = (upper << _halfBits) | lower;
+            _nextKey = Convert.ChangeType(result, _underlyingType);
+            while (_values.Contains(_nextKey)) _nextKey = _increment(_nextKey);
+            _values.Add(_nextKey);
+            return _nextKey;
         }
     }
 }
@@ -228,10 +307,11 @@ class GenEnumValues
         foreach (var field in customEnumFields)
         {
             var keywordInfo = field.GetCustomAttribute<CustomEnumAttribute>();
-            var key = CustomEnums.GenerateKey(field.FieldType);
+            var key = CustomEnums.GenerateKey(field);
             var t = field.DeclaringType;
             if (t == null) continue;
             
+            //BaseLibMain.Logger.Info($"Generated value {Convert.ToString((long)Convert.ChangeType(key, TypeCode.Int64), 2)} for field {field.Name} of enum {t.FullName}");
             field.SetValue(null, key);
 
             if (field.FieldType == typeof(CardKeyword))

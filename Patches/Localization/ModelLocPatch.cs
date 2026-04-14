@@ -53,7 +53,7 @@ class ModelLocPatch
                 string key = content.Key.Entry;
                 foreach (var locEntry in loc)
                 {
-                    dict[$"{key}.{locEntry.Item1}"] = locEntry.Item2;
+                    dict[$"{key}.{locEntry.Item1}"] = SimpleLoc.TrySimplify(locEntry.Item2);
                 }
             }
         }
