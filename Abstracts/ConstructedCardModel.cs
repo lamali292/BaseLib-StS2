@@ -89,6 +89,17 @@ public abstract class ConstructedCardModel(
         _constructedDynamicVars.Add(dynVar);
         return this;
     }
+
+    /// <summary>
+    /// Generates an <seealso cref="EnergyVar"/>EnergyVar with given base value and adds the energy tooltip.
+    /// </summary>
+    protected ConstructedCardModel WithEnergy(int baseVal, int upgrade = 0)
+    {
+        var dynVar = new EnergyVar(baseVal).WithUpgrade(upgrade);
+        _constructedDynamicVars.Add(dynVar);
+        WithEnergyTip();
+        return this;
+    }
     
     /// <summary>
     /// Generates a <seealso cref="PowerVar{T}"/>PowerVar and adds a tooltip. You can also just pass a PowerVar to <seealso cref="WithVars"/>WithVars.
