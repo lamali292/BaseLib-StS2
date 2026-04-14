@@ -84,17 +84,25 @@ public static class CustomEnums
     private static readonly Dictionary<string, int> HashDict = [];
     private static readonly HashSet<int> ExistingHashes = [];
     private static readonly Dictionary<Type, KeyGenerator> KeyGenerators = [];
-
+    
+    public static T GenerateKey<T>(string @namespace, string name) where T : Enum
+    {
+        return (T)GenerateKey(typeof(T), @namespace, name);
+    }
+    
     public static object GenerateKey(FieldInfo field)
     {
-        var enumType = field.FieldType;
+        return GenerateKey(field.FieldType, field.DeclaringType!.GetRootNamespace(), field.Name);
+    }
+    
+    public static object GenerateKey(Type enumType, string @namespace, string name)
+    {
         if (!KeyGenerators.TryGetValue(enumType, out var generator))
         {
             KeyGenerators.Add(enumType, generator = new(enumType));
         }
-        
-        //GetHashCode is inconsistent between executions
-        return generator.GetKey(ComputeBasicHash(field.DeclaringType!.GetRootNamespace()), ComputeBasicHash(field.Name));
+    
+        return generator.GetKey(ComputeBasicHash(@namespace), ComputeBasicHash(name));
     }
 
     private static int ComputeBasicHash(string s)

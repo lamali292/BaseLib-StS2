@@ -236,7 +236,15 @@ public static class CommonActions
     {
         CardSelectorPrefs prefs = new(selectionPrompt, count);
         var pile = pileType.GetPile(card.Owner);
-        return await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
     }
     
     /// <summary>
@@ -247,7 +255,15 @@ public static class CommonActions
     {
         CardSelectorPrefs prefs = new(selectionPrompt, minCount, maxCount);
         var pile = pileType.GetPile(card.Owner);
-        return await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
     }
 
     /// <summary>
@@ -257,7 +273,15 @@ public static class CommonActions
     public static async Task<CardModel?> SelectSingleCard(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType)
     {
         CardSelectorPrefs prefs = new(selectionPrompt, 1);
-        CardPile pile = pileType.GetPile(card.Owner);
-        return (await CardSelectCmd.FromSimpleGrid(context, pile.Cards, card.Owner, prefs)).FirstOrDefault();
+        var pile = pileType.GetPile(card.Owner);
+        var cards = pile.Cards;
+        if (pile.Type == PileType.Draw)
+        {
+            cards = cards
+                .OrderBy(c => c.Rarity)
+                .ThenBy(c => c.Id)
+                .ToList();
+        }
+        return (await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs)).FirstOrDefault();
     }
 }

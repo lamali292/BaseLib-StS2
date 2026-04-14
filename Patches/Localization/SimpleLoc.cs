@@ -53,10 +53,16 @@ public static partial class SimpleLoc
     [GeneratedRegex(@"\*(.+?)\*?(\s|\b)")] private static partial Regex HighlightRegex { get; }
 
     [GeneratedRegex(@"!(.*?)!")] private static partial Regex DiffVariableRegex { get; }
-    [GeneratedRegex(@"\?(.*?)\?")] private static partial Regex InverseVariableRegex { get; }
+    [GeneratedRegex(@"@(.*?)@")] private static partial Regex InverseVariableRegex { get; }
+    
+    [GeneratedRegex(@"(?:(?:-(.+?)-)|(?:\+(.+?)\+))(?:\+(.+?)\+)?")]
+    private static partial Regex UpgradeSwapRegex { get; }
 
-    [GeneratedRegex(@"({)([^{]*?)((?::.*)?}.*?)\((.*?)\)")]
+    [GeneratedRegex(@"({)([^{]+?)((?::.*)?}.*?)\((.+?)\)")]
     private static partial Regex PluralizeRegex { get; }
+    
+    [GeneratedRegex(@"\[(?:(E\?)|(E+))\]")]
+    private static partial Regex EnergyIconsRegex { get; }
 
     private static readonly Dictionary<string, string> SpecialVarDictionary = new()
     {
@@ -69,6 +75,10 @@ public static partial class SimpleLoc
         { "H", "Heal" }
     };
 
+    /// <summary>
+    /// Simplify the given string if it starts with `#`.
+    /// Does not check if mod as a whole has simplified text enabled.
+    /// </summary>
     public static string TrySimplify(string loc)
     {
         return !loc.StartsWith('#') ? loc : Simplify(loc[1..]);
@@ -78,9 +88,30 @@ public static partial class SimpleLoc
         loc = HighlightRegex.Replace(loc, "[gold]$1[/gold]$2");
         loc = DiffVariableRegex.Replace(loc, match => ReplaceVarName(match, ":diff()"));
         loc = InverseVariableRegex.Replace(loc, match => ReplaceVarName(match, ":inverseDiff()"));
-        loc = PluralizeRegex.Replace(loc, "$1$2$3{$2:plural:|$4}");
+        loc = EnergyIconsRegex.Replace(loc, MakeEnergyIcons);
+        loc = PluralizeRegex.Replace(loc, "$1$2$3{$2:plural:|$4}"); //Plural first so that upgrade var is not considered
+        loc = UpgradeSwapRegex.Replace(loc, MakeUpgradeSwap);
+        
+        BaseLibMain.Logger.Info($"SimplifiedLoc: {loc}");
             
         return loc;
+    }
+
+    private static string MakeEnergyIcons(Match match)
+    {
+        if (match.Groups[1].Length > 0)
+        {
+            return "{Energy:energyIcons()}";
+        }
+        var count = match.Groups[2].Length;
+        return count == 0 ? match.Value : $"{{energyPrefix:energyIcons({count})}}";
+    }
+
+    private static string MakeUpgradeSwap(Match match)
+    {
+        var removeText = match.Groups[1].Value;
+        var addText = match.Groups[2].Value + match.Groups[3].Value;
+        return $"{{IfUpgraded:show:{addText}|{removeText}}}";
     }
 
     private static string ReplaceVarName(Match match, string processor)
