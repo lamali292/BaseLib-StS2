@@ -34,7 +34,7 @@ public partial class NLogWindow : Window
     {
         if (!BaseLibConfig.OpenLogWindowOnError || _listeners.Count > 0 || _openedOnErr) return;
         _openedOnErr = true;
-        OpenLogWindow.OpenWindow(true);
+        Callable.From(() => OpenLogWindow.OpenWindow(true)).CallDeferred();
     }
 
     private ScrollContainer? _scrollContainer;

@@ -5,7 +5,7 @@ namespace BaseLib.Cards;
 
 public class BaseLibKeywords
 {
-    /// See PurgePatch and BaseLibSingleton
+    /// See PurgePatch and AfterCardPlayedPatch
     /// <summary>
     /// A card that removes itself from the deck when played.
     /// </summary>
