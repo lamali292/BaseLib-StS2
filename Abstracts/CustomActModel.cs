@@ -49,7 +49,7 @@ public abstract class CustomActModel : ActModel, ICustomModel
     /// </summary>
     public virtual string? CustomChestScene => null;
     
-    protected virtual BackgroundAssets CustomGenerateBackgroundAssets(ActModel parentAct, Rng rng)
+    protected virtual BackgroundAssets CustomGenerateBackgroundAssets(Rng rng)
     {
         return  new BackgroundAssets("glory", Rng.Chaotic);
     }
@@ -128,7 +128,7 @@ public abstract class CustomActModel : ActModel, ICustomModel
         public static bool UseCustomBackgroundAssets(ActModel __instance, Rng rng, ref BackgroundAssets __result)
         {
             if (__instance is not CustomActModel customAct) return true;
-            __result = customAct.CustomGenerateBackgroundAssets(__instance, rng);
+            __result = customAct.CustomGenerateBackgroundAssets(rng);
             return false;
         }
     }
