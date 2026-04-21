@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using BaseLib.Config.UI;
 using BaseLib.Extensions;
@@ -49,10 +50,13 @@ public class SimpleModConfig : ModConfig
                 ModConfigLogger.Error($"Unable to show restore confirmation dialog: {e.Message}");
             }
         });
+
+        resetButton.Name = "ResetDefaultsButton";
         resetButton.CustomMinimumSize = new Vector2(360, resetButton.CustomMinimumSize.Y);
         resetButton.SetColor(Color.FromHtml("#b03f3f"));
 
         var centerContainer = new CenterContainer();
+        centerContainer.Name = "ResetDefaultsButtonContainer";
         centerContainer.CustomMinimumSize = new Vector2(0, 128);
         centerContainer.AddChild(resetButton);
 
@@ -157,7 +161,7 @@ public class SimpleModConfig : ModConfig
 
     /// <summary>
     /// Auto-generates a UI row from a property, including a hover tip if [ConfigHoverTip] is specified.<br/>
-    /// Properties with [ConfigHideinUI] will NOT be ignored, so you can use this to manually create them if you wish.
+    /// Properties with [ConfigHideInUI] will NOT be ignored, so you can use this to manually create them if you wish.
     /// </summary>
     /// <exception cref="NotSupportedException">Thrown for non-supported property types.</exception>
     protected NConfigOptionRow GenerateOptionFromProperty(PropertyInfo property)
@@ -187,7 +191,7 @@ public class SimpleModConfig : ModConfig
     /// <summary>
     /// Auto-generates a button row from a method marked with [ConfigButton], including a hover tip if [ConfigHoverTip]
     /// is specified.<br/>
-    /// Methods with [ConfigHideinUI] will NOT be ignored, so you can use this to manually create buttons for them
+    /// Methods with [ConfigHideInUI] will NOT be ignored, so you can use this to manually create buttons for them
     /// if you wish.
     /// </summary>
     /// <exception cref="NotSupportedException">Thrown if [ConfigButton] is missing.</exception>
@@ -381,13 +385,12 @@ public class SimpleModConfig : ModConfig
             var prevTarget = i == 0 ? focusTargets[^1] : focusTargets[i - 1];
             var nextTarget = i == focusTargets.Count - 1 ? focusTargets[0] : focusTargets[i + 1];
 
-            // Only assign if the mod hasn't explicitly set something up manually, just in case
-            if (current.FocusNeighborTop.IsEmpty) current.FocusNeighborTop = prevTarget.GetPath();
-            if (current.FocusNeighborBottom.IsEmpty) current.FocusNeighborBottom = nextTarget.GetPath();
+            current.FocusNeighborTop = prevTarget.GetPath();
+            current.FocusNeighborBottom = nextTarget.GetPath();
 
             // Lock horizontal navigation to the control itself by default
-            if (current.FocusNeighborLeft.IsEmpty) current.FocusNeighborLeft = selfNodePath;
-            if (current.FocusNeighborRight.IsEmpty) current.FocusNeighborRight = selfNodePath;
+            current.FocusNeighborLeft = selfNodePath;
+            current.FocusNeighborRight = selfNodePath;
         }
     }
 
@@ -471,13 +474,13 @@ public class SimpleModConfig : ModConfig
         object?[] convertedArgs = [];
         if (visibleIf.Args.Length > 0)
         {
-            var propType = prop.PropertyType;
+            var propType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
             try
             {
                 convertedArgs = visibleIf.Args.Select(arg =>
                     arg == null ? null :
                     propType.IsEnum ? Enum.ToObject(propType, arg) :
-                    Convert.ChangeType(arg, propType)
+                    Convert.ChangeType(arg, propType, CultureInfo.InvariantCulture)
                 ).ToArray();
             }
             catch (Exception e)
@@ -533,7 +536,7 @@ public class SimpleModConfig : ModConfig
     /// all arguments given to the attribute.
     protected object? ResolveVisibilityMethodArgument(ParameterInfo param, MemberInfo memberInfo, Queue<object?> argsQueue)
     {
-        var t = param.ParameterType;
+        var t = Nullable.GetUnderlyingType(param.ParameterType) ?? param.ParameterType;
 
         // I honestly don't see any use for MethodInfo (but have used PropertyInfo), but it's close enough to "free"
         // to support it, too, just in case.
@@ -564,7 +567,7 @@ public class SimpleModConfig : ModConfig
         try
         {
             // Map the type, in case the e.g. the method takes float/double but the attribute has an integer argument
-            return rawArg != null ? Convert.ChangeType(rawArg, t) : null;
+            return rawArg != null ? Convert.ChangeType(rawArg, t, CultureInfo.InvariantCulture) : null;
         }
         catch (Exception e)
         {

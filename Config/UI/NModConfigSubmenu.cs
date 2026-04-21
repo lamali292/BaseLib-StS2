@@ -169,7 +169,8 @@ public partial class NModConfigSubmenu : NSubmenu
 
     private void ModButtonClicked(NModListButton button, ModConfig modConfig)
     {
-        LoadModConfig(modConfig);
+        if (modConfig != _currentConfig)
+            LoadModConfig(modConfig);
 
         if (!_isUsingController || _modLoadFailed) return;
 
@@ -214,6 +215,7 @@ public partial class NModConfigSubmenu : NSubmenu
     private void InputTypeChanged()
     {
         _isUsingController = NControllerManager.Instance?.IsUsingController ?? false;
+        SetBackButtonVisible(true);
         FocusActiveModButton();
     }
 
