@@ -1,5 +1,6 @@
-﻿using MegaCrit.Sts2.Core.Commands;
+﻿using BaseLib.Utils;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.HoverTips;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
@@ -25,7 +26,14 @@ public abstract class CustomTemporaryPowerModelWrapper<TModel, TPower> : CustomT
 
     public override AbstractModel OriginModel => ModelDb.GetById<AbstractModel>(ModelDb.GetId<TModel>());
     public override PowerModel InternallyAppliedPower => ModelDb.Power<TPower>();
-    protected override Func<Creature, decimal, Creature?, CardModel?, bool, Task> ApplyPowerFunc => PowerCmd.Apply<TPower>;
+
+    protected override Func<PlayerChoiceContext, Creature, decimal, Creature?, CardModel?, bool, Task> ApplyPowerFunc =>
+        (context, target, amt, src, srcCard, silent) =>
+        {
+            return BetaMainCompatibility.PowerCmd_.Apply.
+                InvokeGeneric<Task<TPower?>, TPower>(null, context, target, amt, src, srcCard, silent) ?? Task.CompletedTask;
+        };
+        
     
     
 

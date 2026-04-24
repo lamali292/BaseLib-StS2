@@ -7,6 +7,7 @@ using BaseLib.Utils;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Localization;
+using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
 namespace BaseLib.Patches;
@@ -20,10 +21,23 @@ namespace BaseLib.Patches;
 [HarmonyPatch(typeof(LocManager), nameof(LocManager.Initialize))] 
 class PostModInitPatch
 {
+    private static bool _anyModModifiesGameplay = false;
+    public static bool CanModifyGameplay => _anyModModifiesGameplay;
+    
     [HarmonyPrefix]
     private static void ProcessModdedTypes()
     {
         BaseLibMain.Logger.Info("Performing post-mod init patch");
+
+        foreach (var mod in ModManager.GetLoadedMods())
+        {
+            if (mod.manifest?.affectsGameplay == true)
+            {
+                _anyModModifiesGameplay = true;
+                break;
+            }
+        }
+        
         
         Harmony harmony = new("PostModInit");
 

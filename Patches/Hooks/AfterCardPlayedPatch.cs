@@ -1,4 +1,5 @@
 ﻿using BaseLib.Cards.Variables;
+using BaseLib.Patches.Features;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
@@ -6,7 +7,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Hooks;
 
-namespace BaseLib.Patches.Features;
+namespace BaseLib.Patches.Hooks;
 
 [HarmonyPatch(typeof(Hook), nameof(Hook.AfterCardPlayed))]
 class AfterCardPlayedPatch
@@ -16,12 +17,15 @@ class AfterCardPlayedPatch
         PlayerChoiceContext choiceContext,
         CardPlay cardPlay, ref Task __result)
     {
-        __result = ExecuteAfterPlay(cardPlay, __result);
+        if (PostModInitPatch.CanModifyGameplay)
+        {
+            __result = ExecuteAfterPlay(cardPlay, __result);
+        }
     }
 
-    private static async Task ExecuteAfterPlay(CardPlay cardPlay, Task followTask)
+    private static async Task ExecuteAfterPlay(CardPlay cardPlay, Task originalTask)
     {
-        await followTask;
+        await originalTask;
         
         var refundAmount = cardPlay.Card.DynamicVars.TryGetValue(RefundVar.Key, out var val) ? val.IntValue : 0;
         if (refundAmount > 0 && cardPlay.Resources.EnergySpent > 0)

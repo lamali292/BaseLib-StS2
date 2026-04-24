@@ -4,7 +4,6 @@ using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Powers;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
-using MegaCrit.Sts2.Core.HoverTips;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
@@ -23,7 +22,7 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
          description.Add("TemporaryPowerTitle", this.InternallyAppliedPower.Title);
      }
 
-    protected abstract Func<Creature, decimal, Creature?, CardModel?, bool, Task> ApplyPowerFunc { get; }
+    protected abstract Func<PlayerChoiceContext, Creature, decimal, Creature?, CardModel?, bool, Task> ApplyPowerFunc { get; }
     public abstract PowerModel InternallyAppliedPower { get; }
     public abstract AbstractModel OriginModel { get; }
     protected virtual bool UntilEndOfOtherSideTurn => false;
@@ -60,12 +59,12 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
         {
             DynamicVars.Repeat.BaseValue = LastForXExtraTurns;
             DynamicVars[LocTurnEndBoolVar].BaseValue = Convert.ToDecimal(UntilEndOfOtherSideTurn);
-            await ApplyPowerFunc(target, amount, applier, cardSource, true);
+            await ApplyPowerFunc(new ThrowingPlayerChoiceContext(), target, amount, applier, cardSource, true);
         }
     }
 
     
-    public override async Task AfterPowerAmountChanged(PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
+    public override async Task AfterPowerAmountChanged(PlayerChoiceContext context, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
         var powerSource = this;
         if (InternallyAppliedPower is CustomTemporaryPowerModel)
@@ -75,10 +74,10 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
         if (powerSource._shouldIgnoreNextInstance)
             powerSource._shouldIgnoreNextInstance = false;
         else
-            await ApplyPowerFunc(powerSource.Owner, amount, applier, cardSource, true);
+            await ApplyPowerFunc(context, powerSource.Owner, amount, applier, cardSource, true);
     }
-    
-    
+
+
     public override async Task AfterTurnEnd(PlayerChoiceContext choiceContext, CombatSide side)
     {
         var powerSource = this;
@@ -96,7 +95,7 @@ public abstract class CustomTemporaryPowerModel : CustomPowerModel, ITemporaryPo
         }
 
         powerSource.Flash();
-        await ApplyPowerFunc(powerSource.Owner, -powerSource.Amount, powerSource.Owner, null, true);
+        await ApplyPowerFunc(choiceContext, powerSource.Owner, -powerSource.Amount, powerSource.Owner, null, true);
         await PowerCmd.Remove(powerSource);
     }
 

@@ -29,21 +29,21 @@ public class RelicImageOverridePatch
     
     [HarmonyPatch(typeof(RelicModel), nameof(RelicModel.PackedIconPath), MethodType.Getter)]
     [HarmonyPrefix]
-    static bool PackedIconPath(RelicModel __instance, ref string __result)
+    static bool PackedIconPath(RelicModel __instance, ref string? __result)
     {
         return TryGetCustomPath(__instance, y => y.PackedIconPath, ref __result);
     }
 
     [HarmonyPatch(typeof(RelicModel), "PackedIconOutlinePath", MethodType.Getter)]
     [HarmonyPrefix]
-    static bool PackedIconOutlinePath(RelicModel __instance, ref string __result)
+    static bool PackedIconOutlinePath(RelicModel __instance, ref string? __result)
     {
         return TryGetCustomPath(__instance, y => y.PackedIconOutlinePath, ref __result);
     }
     
     [HarmonyPatch(typeof(RelicModel), "BigIconPath", MethodType.Getter)]
     [HarmonyPrefix]
-    static bool BigIconPath(RelicModel __instance, ref string __result)
+    static bool BigIconPath(RelicModel __instance, ref string? __result)
     {
         return TryGetCustomPath(__instance, y => y.BigIconPath, ref __result);
     }

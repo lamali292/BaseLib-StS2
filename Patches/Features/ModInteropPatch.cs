@@ -1,10 +1,10 @@
 ﻿using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using BaseLib.Utils;
 using BaseLib.Utils.ModInterop;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Modding;
 
 namespace BaseLib.Patches.Features;
 
@@ -19,7 +19,7 @@ internal class ModInterop
     {
         BaseLibMain.Logger.Info("Generating interop methods and properties");
         
-        _loadedIds = BetaMainCompatibility.Renamed.LoadedMods.Get()
+        _loadedIds = ModManager.GetLoadedMods()
             .Where(mod => mod.manifest != null && mod.assembly != null)
             .ToDictionary(mod => mod.manifest?.id ?? "", mod => mod.assembly);
     }

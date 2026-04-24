@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using BaseLib.Hooks;
+using BaseLib.Utils;
 using BaseLib.Utils.Patching;
 using Godot;
 using HarmonyLib;
@@ -45,12 +46,12 @@ public static class MaxHandSizePatch
     public static int GetMaxHandSize(Player player)
     {
         var runState = player.RunState ?? NullRunState.Instance;
-        var combatState = player.Creature.CombatState;
+        var combatState = BetaMainCompatibility.Creature_.CombatState.Get(player.Creature);
 
         var amount = DefaultMaxHandSize;
         var list = new List<IMaxHandSizeModifier>();
 
-        foreach (var modifier in runState.IterateHookListeners(combatState))
+        foreach (var modifier in BetaMainCompatibility.RunState.IterateHookListeners.Invoke<IEnumerable<AbstractModel>>(runState, combatState) ?? [])
         {
             if (modifier is IMaxHandSizeModifier maxHandSizeModifier)
                 list.Add(maxHandSizeModifier);

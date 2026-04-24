@@ -9,17 +9,18 @@ namespace BaseLib.Utils.Patching;
 public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
 {
     //Placeholder-ish, other existing tools may be easier to use. Will need time to see.
-    private readonly List<CodeInstruction> code = [.. instructions];
-    private int index = -1, lastMatchStart = -1;
+    private readonly List<CodeInstruction> _code = [.. instructions];
+    private int _index = -1, _lastMatchStart = -1;
 
     public readonly List<string> Log = [];
+    public int Index => _index;
 
-    public static implicit operator List<CodeInstruction>(InstructionPatcher locator) => locator.code;
+    public static implicit operator List<CodeInstruction>(InstructionPatcher locator) => locator._code;
 
     public InstructionPatcher ResetPosition()
     {
-        index = -1;
-        lastMatchStart = -1;
+        _index = -1;
+        _lastMatchStart = -1;
         return this;
     }
 
@@ -44,32 +45,32 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <returns></returns>
     public InstructionPatcher Match(Action<IMatcher[]> onFailMatch, params IMatcher[] matchers)
     {
-        if (index < 0) index = 0;
+        if (_index < 0) _index = 0;
         foreach (IMatcher matcher in matchers)
         {
-            if (!matcher.Match(Log, code, index, out lastMatchStart, out index))
+            if (!matcher.Match(Log, _code, _index, out _lastMatchStart, out _index))
             {
                 onFailMatch(matchers);
                 return this;
             }
         }
 
-        Log.Add("Found end of match at " + index + "; last match starts at " + lastMatchStart);
+        Log.Add("Found end of match at " + _index + "; last match starts at " + _lastMatchStart);
 
         return this;
     }
 
     public InstructionPatcher MatchStart()
     {
-        index = 0;
-        lastMatchStart = 0;
+        _index = 0;
+        _lastMatchStart = 0;
         return this;
     }
 
     public InstructionPatcher MatchEnd()
     {
-        index = code.Count;
-        lastMatchStart = 0;
+        _index = _code.Count;
+        _lastMatchStart = 0;
         return this;
     }
 
@@ -83,11 +84,11 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher Step(int amt = 1)
     {
-        if (index < 0) throw new Exception("Attempted to Step without any match found");
+        if (_index < 0) throw new Exception("Attempted to Step without any match found");
 
-        index += amt;
+        _index += amt;
 
-        Log.Add("Stepped to " + index);
+        Log.Add("Stepped to " + _index);
 
         return this;
     }
@@ -100,19 +101,19 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher GetLabels(out List<Label> labels)
     {
-        if (index < 0) throw new Exception("Attempted to GetLabels without any match found");
+        if (_index < 0) throw new Exception("Attempted to GetLabels without any match found");
 
-        labels = code[index].labels;
+        labels = _code[_index].labels;
 
         if (labels.Count == 0)
         {
-            if (code[index].operand is Label)
+            if (_code[_index].operand is Label)
             {
-                throw new Exception($"Code instruction {code[index].ToString()} has no labels. Did you mean to use GetOperandLabel instead?");
+                throw new Exception($"Code instruction {_code[_index].ToString()} has no labels. Did you mean to use GetOperandLabel instead?");
             }
             else
             {
-                throw new Exception($"Code instruction {code[index].ToString()} has no labels");
+                throw new Exception($"Code instruction {_code[_index].ToString()} has no labels");
             }
         }
 
@@ -127,27 +128,27 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher GetOperandLabel(out Label label)
     {
-        if (index < 0) throw new Exception("Attempted to GetOperandLabel without any match found");
-        if (code[index].operand is Label result)
+        if (_index < 0) throw new Exception("Attempted to GetOperandLabel without any match found");
+        if (_code[_index].operand is Label result)
         {
             label = result;
             return this;
         }
-        throw new Exception($"Code instruction {code[index].ToString()} does not have a Label parameter");
+        throw new Exception($"Code instruction {_code[_index].ToString()} does not have a Label parameter");
     }
 
     public InstructionPatcher GetOperand(out object operand)
     {
-        if (index < 0) throw new Exception("Attempted to GetOperand without any match found");
-        operand = code[index].operand;
+        if (_index < 0) throw new Exception("Attempted to GetOperand without any match found");
+        operand = _code[_index].operand;
         Log.Add($"Got operand [{operand?.GetType().FullName}]{operand}");
         return this;
     }
     
     public InstructionPatcher GetIndexOperand(out int operand)
     {
-        if (index < 0) throw new Exception("Attempted to GetOperand without any match found");
-        CodeInstruction instruction = code[index];
+        if (_index < 0) throw new Exception("Attempted to GetOperand without any match found");
+        CodeInstruction instruction = _code[_index];
         switch ((int) instruction.opcode.Value)
         {
             case (int)OpCodeValues.Ldarg_0:
@@ -184,6 +185,19 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
         return this;
     }
 
+    public InstructionPatcher TryGetIntValue(out int? val)
+    {
+        val = null;
+        if (_index < 0) throw new Exception("Attempted to TryGetIntValue without any match found");
+        
+        if (_code[_index].TryGetIntValue(out var result))
+        {
+            val = result;
+        }
+        
+        return this;
+    }
+
     /// <summary>
     /// Replaces a match of CodeInstructions. Note that if this removes a labeled instruction this can cause issues.
     /// Preserving labels must be done manually.
@@ -193,32 +207,32 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher ReplaceLastMatch(IEnumerable<CodeInstruction> replacement)
     {
-        if (lastMatchStart < 0) throw new Exception("Attempted to ReplaceLastMatch without any match found");
+        if (_lastMatchStart < 0) throw new Exception("Attempted to ReplaceLastMatch without any match found");
 
         int i = 0;
         foreach (CodeInstruction instruction in replacement)
         {
-            int replaceIndex = lastMatchStart + i;
-            if (replaceIndex > index)
+            int replaceIndex = _lastMatchStart + i;
+            if (replaceIndex > _index)
             {
-                index = replaceIndex;
-                code.Insert(index, instruction);
+                _index = replaceIndex;
+                _code.Insert(_index, instruction);
             }
             else
             {
-                code[lastMatchStart + i] = instruction;
+                _code[_lastMatchStart + i] = instruction;
             }
             ++i;
         }
 
-        if (lastMatchStart + i < index)
+        if (_lastMatchStart + i < _index)
         {
-            code.RemoveRange(lastMatchStart + i, index - (lastMatchStart + i));
-            index = lastMatchStart + i;
+            _code.RemoveRange(_lastMatchStart + i, _index - (_lastMatchStart + i));
+            _index = _lastMatchStart + i;
         }
         else
         {
-            ++index;
+            ++_index;
         }
 
         return this;
@@ -226,23 +240,23 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
 
     public InstructionPatcher Replace(CodeInstruction replacement, bool keepLabels = true)
     {
-        if (index < 0) throw new Exception("Attempted to Replace without any match found");
+        if (_index < 0) throw new Exception("Attempted to Replace without any match found");
 
         if (keepLabels)
         {
-            replacement.MoveLabelsFrom(code[index]);
+            replacement.MoveLabelsFrom(_code[_index]);
         }
 
-        Log.Add($"{code[index]} => {replacement}");
-        code[index] = replacement;
+        Log.Add($"{_code[_index]} => {replacement}");
+        _code[_index] = replacement;
         return this;
     }
 
     public InstructionPatcher IncrementIntPush()
     {
-        if (index < 0) throw new Exception("Attempted to Replace without any match found");
+        if (_index < 0) throw new Exception("Attempted to Replace without any match found");
 
-        switch (code[index].opcode.Value)
+        switch (_code[_index].opcode.Value)
         {
             case 0x15: //m1, -1
                 return Replace(new CodeInstruction(OpCodes.Ldc_I4_0));
@@ -263,16 +277,16 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
             case 0x1d: //7
                 return Replace(new CodeInstruction(OpCodes.Ldc_I4_8));
             case 0x1e: //8
-                throw new Exception("Instruction " + code[index] + " cannot be incremented"); //maybe later support arbitrary int
+                throw new Exception("Instruction " + _code[_index] + " cannot be incremented"); //maybe later support arbitrary int
             default:
-                throw new Exception("Instruction " + code[index] + " is not an int push instruction that can be incremented");
+                throw new Exception("Instruction " + _code[_index] + " is not an int push instruction that can be incremented");
         }
     }
     public InstructionPatcher IncrementIntPush(out CodeInstruction replacedPush)
     {
-        if (index < 0) throw new Exception("Attempted to Replace without any match found");
+        if (_index < 0) throw new Exception("Attempted to Replace without any match found");
 
-        switch (code[index].opcode.Value)
+        switch (_code[_index].opcode.Value)
         {
             case 0x15: //m1, -1
                 replacedPush = new CodeInstruction(OpCodes.Ldc_I4_M1);
@@ -306,7 +320,7 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
                 return Replace(new CodeInstruction(OpCodes.Ldc_I4_S, (sbyte)9));
             //throw new Exception("Instruction " + code[index] + " cannot be incremented"); //maybe later support arbitrary int
             default:
-                throw new Exception("Instruction " + code[index] + " is not an int push instruction that can be incremented");
+                throw new Exception("Instruction " + _code[_index] + " is not an int push instruction that can be incremented");
         }
     }
 
@@ -318,12 +332,12 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher Insert(CodeInstruction instruction)
     {
-        if (index < 0) throw new Exception("Attempted to Insert without any match found");
+        if (_index < 0) throw new Exception("Attempted to Insert without any match found");
 
-        code.Insert(index, instruction);
-        ++index;
+        _code.Insert(_index, instruction);
+        ++_index;
         
-        Log.Add($"Inserted 1 instruction, new index {index}");
+        Log.Add($"Inserted 1 instruction, new index {_index}");
 
         return this;
     }
@@ -336,22 +350,22 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher Insert(IEnumerable<CodeInstruction> insert)
     {
-        if (index < 0) throw new Exception("Attempted to Insert without any match found");
+        if (_index < 0) throw new Exception("Attempted to Insert without any match found");
 
         var codeInstructions = insert as CodeInstruction[] ?? insert.ToArray();
-        code.InsertRange(index, codeInstructions);
-        index += codeInstructions.Length;
+        _code.InsertRange(_index, codeInstructions);
+        _index += codeInstructions.Length;
         
-        Log.Add($"Inserted {codeInstructions.Length} instructions, new index {index}");
+        Log.Add($"Inserted {codeInstructions.Length} instructions, new index {_index}");
 
         return this;
     }
 
     public InstructionPatcher CopyMatch(out List<CodeInstruction> match)
     {
-        if (index < 0) throw new Exception("Attempted to CopyMatch without any match found");
+        if (_index < 0) throw new Exception("Attempted to CopyMatch without any match found");
 
-        match = code.GetRange(lastMatchStart, index - lastMatchStart);
+        match = _code.GetRange(_lastMatchStart, _index - _lastMatchStart);
         
         Log.Add($"Copied {match.Count} instructions:\n");
         foreach (var instruction in match)
@@ -371,16 +385,16 @@ public class InstructionPatcher(IEnumerable<CodeInstruction> instructions)
     /// <exception cref="Exception"></exception>
     public InstructionPatcher InsertCopy(int startOffset, int copyLength)
     {
-        if (index < 0) throw new Exception("Attempted to InsertCopy without any match found");
+        if (_index < 0) throw new Exception("Attempted to InsertCopy without any match found");
 
-        int startIndex = index + startOffset;
+        int startIndex = _index + startOffset;
         if (startIndex < 0) throw new Exception($"startIndex of InsertCopy less than 0 ({startIndex})");
 
         List<CodeInstruction> copy = [];
         for (int i = 0; i < copyLength; ++i)
         {
-            Log.Add("Inserting Copy: " + code[startIndex + i]);
-            copy.Add(code[startIndex + i].Clone());
+            Log.Add("Inserting Copy: " + _code[startIndex + i]);
+            copy.Add(_code[startIndex + i].Clone());
         }
 
         return Insert(copy);
