@@ -280,41 +280,41 @@ class ModelDbCustomActsPatch
 [HarmonyPatch(typeof(ActModel), nameof(ActModel.GetRandomList))]
 public class ActModelGetRandomListPatch
 {
-    public static bool Prefix(ref IEnumerable<ActModel> __result, Rng rng, UnlockState unlockState, bool isMultiplayer)
+    [HarmonyPostfix]
+    public static IEnumerable<ActModel> AdjustResult(IEnumerable<ActModel> __result, Rng rng, UnlockState unlockState, bool isMultiplayer)
     {
-        if (!CustomContentDictionary.CustomActs.Any()) return true;
+        bool unlockedDocks = unlockState.IsEpochRevealed<UnderdocksEpoch>();
+        bool forceDocks = !isMultiplayer && !SaveManager.Instance.Progress.DiscoveredActs.Contains(ModelDb.Act<Underdocks>().Id);
         
-        bool flag = unlockState.IsEpochRevealed<UnderdocksEpoch>();
-        bool flag2 = !isMultiplayer && !SaveManager.Instance.Progress.DiscoveredActs.Contains(ModelDb.Act<Underdocks>().Id);
-        ActModel? act1 = null;
-        if (flag && flag2) // Mimic the games behaviour of forcing Overgrowth as Act
-            act1 = ModelDb.Act<Overgrowth>();
-        else
-            act1 = rng.NextItem<ActModel>([ModelDb.Act<Overgrowth>(), .. (flag ? [ModelDb.Act<Underdocks>()] : Enumerable.Empty<ActModel>()) , .. CustomContentDictionary.CustomActs.Where(act => act.ActNumber == 1)]);
-        if (act1 == null)
+        if (CustomContentDictionary.CustomActs.Count == 0 || (unlockedDocks && forceDocks)) return __result;
+        
+        BaseLibMain.Logger.Info("Rolling with custom acts:");
+
+        List<ActModel> newResult = new List<ActModel>(__result);
+        
+        int[] baseActCounts = [2, 1, 1];
+        for (int i = 0; i < newResult.Count; ++i)
         {
-            BaseLibMain.Logger.Warn("Something went wrong trying to generate Act 1. Defaulting to base game Act generation.");
-            return true;
+            List<ActModel?> possible = [];
+            if (i < baseActCounts.Length)
+            {
+                possible.AddRange(new ActModel?[baseActCounts[i]]);
+            }
+            possible.AddRange(CustomContentDictionary.CustomActs.Where(act => act.ActNumber == (i + 1)));
+
+            var replace = rng.NextItem(possible);
+            if (replace != null)
+            {
+                newResult[i] = replace;
+            }
         }
-        ActModel? act2 = rng.NextItem<ActModel>([ModelDb.Act<Hive>(), .. CustomContentDictionary.CustomActs.Where(act => act.ActNumber == 2)]);
-        if (act2 == null)
+        
+        foreach (var actModel in newResult)
         {
-            BaseLibMain.Logger.Warn("Something went wrong trying to generate Act 2. Defaulting to base game Act generation.");
-            return true;
+            BaseLibMain.Logger.Info(actModel.Id.Entry);
         }
-        ActModel? act3 = rng.NextItem<ActModel>([ModelDb.Act<Glory>(), .. CustomContentDictionary.CustomActs.Where(act => act.ActNumber == 3)]);
-        if (act3 == null)
-        {
-            BaseLibMain.Logger.Warn("Something went wrong trying to generate Act 3. Defaulting to base game Act generation.");
-            return true;
-        }
-        __result = [act1, act2, act3];
-        BaseLibMain.Logger.Debug("Acts:");
-        foreach (var actModel in __result)
-        {
-            BaseLibMain.Logger.Debug(actModel.Id.Entry);
-        }
-        return false;
+
+        return newResult;
     }
 }
 
