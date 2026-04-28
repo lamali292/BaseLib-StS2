@@ -10,12 +10,14 @@ using System.Reflection;
 using System.Reflection.Emit;
 using BaseLib.Extensions;
 using BaseLib.Patches.Content;
+using BaseLib.Patches.UI;
 using BaseLib.Utils.NodeFactories;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Multiplayer.Game.Lobby;
 using MegaCrit.Sts2.Core.Nodes.RestSite;
 using MegaCrit.Sts2.Core.Nodes.Screens.CharacterSelect;
 using MegaCrit.Sts2.Core.Nodes.Screens.Shops;
+using MegaCrit.Sts2.Core.Models.Relics;
 
 namespace BaseLib.Abstracts;
 
@@ -45,11 +47,17 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILoca
     public virtual bool AllowInVanillaRandomCharacterSelect => !HideFromVanillaCharacterSelect;
 
     /// <summary>
+    /// If true, filter option will not be added to compendium.
+    /// </summary>
+    public virtual bool HideInCompendium => false;
+
+    /// <summary>
     /// Override this or place your scene at res://scenes/creature_visuals/class_name.tscn
     /// </summary>
     public virtual string? CustomVisualPath => null;
     public virtual string? CustomTrailPath => null;
     public virtual string? CustomIconTexturePath => null; //smaller icon used in popup showing saved run info
+    public virtual string? CustomIconOutlineTexturePath => null; // icon outline used on the map in multiplayer
     /// <summary>
     /// Path to a scene for top left in-run icon, stats screen, daily run icon, and run history icon.
     /// </summary>
@@ -79,7 +87,7 @@ public abstract class CustomCharacterModel : CharacterModel, ICustomModel, ILoca
     public virtual string? CustomArmRockTexturePath => null;
     public virtual string? CustomArmPaperTexturePath => null;
     public virtual string? CustomArmScissorsTexturePath => null;
-//    public virtual string? CustomCookieTexturePath => null;
+    public virtual RelicIconData? CustomYummyCookie => null;
 
     /// <summary>
     /// Override this or place your scene at res://scenes/screens/char_select/char_select_bg_class_name.tscn
@@ -295,6 +303,11 @@ public class ModelDbCustomCharacters
         if (!CustomContentDictionary.RegisterType(character.GetType())) return;
         
         CustomCharacters.Add(character);
+        var cookie = character.CustomYummyCookie;
+        if (cookie != null)
+        {
+            RelicImageOverridePatch.AddOverride<YummyCookie>(cookie, (relic) => relic.IsMutable && character.Id.Equals(relic.Owner?.Character.Id));
+        }
     }
 }
 
@@ -445,6 +458,20 @@ class TrailPath
             return true;
 
         __result = customChar.CustomTrailPath;
+        return __result == null;
+    }
+}
+
+[HarmonyPatch(typeof(CharacterModel),  "IconOutlineTexturePath", MethodType.Getter)]
+class IconOutlineTexturePath
+{
+    [HarmonyPrefix]
+    static bool Custom(CharacterModel __instance, ref string? __result)
+    {
+        if (__instance is not CustomCharacterModel customChar)
+            return true;
+
+        __result = customChar.CustomIconOutlineTexturePath;
         return __result == null;
     }
 }

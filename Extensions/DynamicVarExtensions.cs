@@ -2,7 +2,6 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Helpers;
-using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.HoverTips;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
@@ -39,10 +38,11 @@ public static class DynamicVarExtensions
             return amount;
         }
 
-        CombatState? combatState = creature.CombatState;
+        var combatState = BetaMainCompatibility.Creature_.CombatState.Get(creature);
         if (combatState == null) return amount;
 
-        amount = Hook.ModifyBlock(combatState, creature, amount, props, cardSource, cardPlay, out var modifiers);
+        amount = BetaMainCompatibility.Hook_.ModifyBlock
+            .Invoke<decimal>(null, combatState, creature, amount, props, cardSource, cardPlay, null);
         amount = Math.Max(amount, 0m);
         return amount;
     }

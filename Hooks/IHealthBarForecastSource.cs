@@ -1,3 +1,4 @@
+using BaseLib.Utils;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Creatures;
@@ -82,12 +83,12 @@ public readonly record struct HealthBarForecastContext(Creature Creature)
     /// <summary>
     ///     Current combat state when the creature is in combat.
     /// </summary>
-    public CombatState? CombatState => Creature.CombatState;
+    public CombatStateWrapper? CombatState => BetaMainCompatibility.Creature_.WrappedCombatState(Creature);
 
     /// <summary>
     ///     Side whose turn is active when available.
     /// </summary>
-    public CombatSide? CurrentSide => Creature.CombatState?.CurrentSide;
+    public CombatSide? CurrentSide => CombatState?.CurrentSide;
 }
 
 /// <summary>
@@ -104,7 +105,7 @@ public static class HealthBarForecastOrder
     public static int ForSideTurnStart(Creature creature, CombatSide triggerSide)
     {
         ArgumentNullException.ThrowIfNull(creature);
-        return creature.CombatState?.CurrentSide == triggerSide ? 1 : 0;
+        return BetaMainCompatibility.Creature_.WrappedCombatState(creature)?.CurrentSide == triggerSide ? 1 : 0;
     }
 
     /// <summary>
@@ -116,7 +117,7 @@ public static class HealthBarForecastOrder
     public static int ForSideTurnEnd(Creature creature, CombatSide triggerSide)
     {
         ArgumentNullException.ThrowIfNull(creature);
-        return creature.CombatState?.CurrentSide == triggerSide ? 0 : 1;
+        return BetaMainCompatibility.Creature_.WrappedCombatState(creature)?.CurrentSide == triggerSide ? 0 : 1;
     }
 }
 
