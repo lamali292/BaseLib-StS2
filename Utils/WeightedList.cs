@@ -4,20 +4,38 @@ using MegaCrit.Sts2.Core.Random;
 
 namespace BaseLib.Utils;
 
+/// <summary>
+/// If added to a WeightedList<seealso cref="WeightedList{T}"/>, Weight method will be used to determine weight
+/// if a weight is not passed directly.
+/// </summary>
 public interface IWeighted
 {
+    /// <summary>
+    /// Weight of the item in a weighted list when an rng roll is performed.
+    /// </summary>
     int Weight { get; }
 }
 
+/// <summary>
+/// Basic implementation of a weighted collection whose
+/// contents can be rolled using an Sts2 rng object.
+/// </summary>
+/// <typeparam name="T"></typeparam>
 public class WeightedList<T> : IList<T>
 {
     private readonly List<WeightedItem> _items = [];
     private int _totalWeight;
     
+    /// <summary>
+    /// Gets a random weighted item from the list using the provided rng.
+    /// </summary>
     public T GetRandom(Rng rng) {
         return GetRandom(rng, false);
     }
 
+    /// <summary>
+    /// Gets a random weighted item from the list using the provided rng, optionally removing the returned item.
+    /// </summary>
     public T GetRandom(Rng rng, bool remove)
     {
         if (Count == 0) throw new IndexOutOfRangeException("Attempted to roll on empty WeightedList");
@@ -45,7 +63,8 @@ public class WeightedList<T> : IList<T>
 
         throw new Exception($"Roll {roll} failed to get a value in list of total weight {_totalWeight}");
     }
-    
+
+    /// <inheritdoc />
     public IEnumerator<T> GetEnumerator()
     {
         return _items.Select(item => item.Val).GetEnumerator();
@@ -56,31 +75,41 @@ public class WeightedList<T> : IList<T>
         return GetEnumerator();
     }
 
+    /// <inheritdoc />
     public void Add(T item)
     {
         Add(item, item is IWeighted weighted ? weighted.Weight : 1);
     }
+    /// <summary>
+    /// Adds an item to the collection with a custom weight value.
+    /// </summary>
+    /// <param name="item"></param>
+    /// <param name="weight"></param>
     public void Add(T item, int weight) {
         _totalWeight += weight;
         _items.Add(new WeightedItem(item, weight));
     }
 
+    /// <inheritdoc />
     public void Clear()
     {
         _items.Clear();
         _totalWeight = 0;
     }
 
+    /// <inheritdoc />
     public bool Contains(T val)
     {
         return _items.Any(item => Equals(item.Val, val));
     }
 
+    /// <inheritdoc />
     public void CopyTo(T[] array, int arrayIndex)
     {
         _items.Select(item => item.Val).ToList().CopyTo(array, arrayIndex);
     }
 
+    /// <inheritdoc />
     public bool Remove(T val)
     {
         var entry = _items.Find(item => Equals(item.Val, val));
@@ -94,24 +123,34 @@ public class WeightedList<T> : IList<T>
         return false;
     }
 
+    /// <inheritdoc />
     public int Count => _items.Count;
+
+    /// <inheritdoc />
     public bool IsReadOnly => false;
+
+    /// <inheritdoc />
     public int IndexOf(T val)
     {
         return _items.FirstIndex(item => Equals(item.Val, val));
     }
 
+    /// <inheritdoc />
     public void Insert(int index, T item)
     {
         Insert(index, item, 1);
     }
     
+    /// <summary>
+    /// Insert with custom weight.
+    /// </summary>
     public void Insert(int index, T item, int weight)
     {
         _items.Insert(index, new WeightedItem(item, weight));
         _totalWeight += weight;
     }
 
+    /// <inheritdoc />
     public void RemoveAt(int index)
     {
         var item = _items[index];
@@ -119,6 +158,7 @@ public class WeightedList<T> : IList<T>
         _totalWeight -= item.Weight;
     }
 
+    /// <inheritdoc />
     public T this[int index]
     {
         get => _items[index].Val;

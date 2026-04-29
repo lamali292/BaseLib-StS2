@@ -20,6 +20,8 @@ namespace BaseLib.Utils;
 /// For full FMOD Studio banks built against the game's FMOD 2.03.x runtime:
 ///   FmodAudio.LoadBank("path/to/custom.bank");
 ///   FmodAudio.PlayEvent("event:/mods/mymod/my_sound");
+/// 
+/// Packs loaded through mods cannot be loaded through DirAccess/FileAccess, which the FMod GDExtension uses.
 /// </summary>
 [Obsolete("This class is not guaranteed to continue to exist in its current state, and is not recommended for use.")]
 public static class FmodAudio
@@ -39,6 +41,27 @@ public static class FmodAudio
     private static readonly Dictionary<string, SoundPool> _soundPools = new();
     private static readonly Random _poolRng = new();
 
+    private static class Methods
+    {
+        public static GodotMethodDelegate PlayOneShot = new GodotMethod("play_one_shot");
+        public static GodotMethodDelegate CreateSound = new GodotMethod("create_sound");
+    }
+
+    /*public static bool Test(byte[] data)
+    {
+        if (Server == null) return false;
+        try
+        {
+            var result = Methods.CreateSound(Server, data);
+            BaseLibMain.Logger.Info(result.VariantType.ToString());
+        }
+        catch (Exception ex)
+        {
+            BaseLibMain.Logger.Error($"FmodAudio.Test failed: {ex.Message}");
+        }
+        return true;
+    }*/
+
     private static GodotObject? Server
     {
         get
@@ -47,6 +70,7 @@ public static class FmodAudio
             try
             {
                 _server = Engine.GetSingleton("FmodServer");
+                //var ptr = _server.NativeInstance;
             }
             catch (Exception ex)
             {
@@ -72,7 +96,7 @@ public static class FmodAudio
         if (Server == null) return false;
         try
         {
-            Server.Call("play_one_shot", eventPath);
+            Methods.PlayOneShot(Server, eventPath);
             return true;
         }
         catch (Exception ex)

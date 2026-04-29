@@ -33,11 +33,14 @@ public abstract class ConstructedCardModel(
     protected readonly List<(CardKeyword, UpgradeType)> UpgradeKeywords = [];
     private readonly List<DynamicVar> _constructedDynamicVars = [];
     private readonly List<TooltipSource> _hoverTips = [];
+    private readonly List<Func<CardModel, IEnumerable<IHoverTip>>> _multiHoverTips = [];
     private readonly HashSet<CardTag> _constructedTags = [];
 
     protected sealed override IEnumerable<DynamicVar> CanonicalVars => _constructedDynamicVars;
     public sealed override IEnumerable<CardKeyword> CanonicalKeywords => _cardKeywords;
-    protected sealed override IEnumerable<IHoverTip> ExtraHoverTips => _hoverTips.Select(tip => tip.Tip(this));
+    protected sealed override IEnumerable<IHoverTip> ExtraHoverTips => _hoverTips.Select(t => t.Tip(this))
+        .Concat(_multiHoverTips.SelectMany(mt => mt.Invoke(this)));
+    
     protected sealed override HashSet<CardTag> CanonicalTags => _constructedTags;
 
     protected ConstructedCardModel WithVars(params DynamicVar[] vars)
@@ -60,6 +63,10 @@ public abstract class ConstructedCardModel(
     {
         _constructedDynamicVars.Add(new DynamicVar(name, baseVal).WithUpgrade(upgrade));
         return this;
+    }
+    protected ConstructedCardModel WithVar(DynamicVar var)
+    {
+        return WithVars(var);
     }
     
     /// <summary>
@@ -98,6 +105,16 @@ public abstract class ConstructedCardModel(
         var dynVar = new EnergyVar(baseVal).WithUpgrade(upgrade);
         _constructedDynamicVars.Add(dynVar);
         WithEnergyTip();
+        return this;
+    }
+
+    /// <summary>
+    /// Generates a <seealso cref="HealVar"/>HealVar with given base value.
+    /// </summary>
+    protected ConstructedCardModel WithHeal(int baseVal, int upgrade = 0)
+    {
+        var dynVar = new HealVar(baseVal).WithUpgrade(upgrade);
+        _constructedDynamicVars.Add(dynVar);
         return this;
     }
     
@@ -316,6 +333,15 @@ public abstract class ConstructedCardModel(
     protected ConstructedCardModel WithTip(TooltipSource tipSource)
     {
         _hoverTips.Add(tipSource);
+        return this;
+    }
+    
+    /// <summary>
+    /// Adds multiple hover tips to the card.
+    /// </summary>
+    protected ConstructedCardModel WithTips(Func<CardModel, IEnumerable<IHoverTip>> multiTipSource)
+    {
+        _multiHoverTips.Add(multiTipSource);
         return this;
     }
     
