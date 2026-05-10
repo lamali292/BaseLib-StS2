@@ -85,12 +85,12 @@ internal static class RewardSerializationExt
         }
         catch (JsonException ex)
         {
-            BaseLibMain.Logger.Debug($"[BaseLib] Reward ext JSON deserialize failed: {ex.Message}");
+            BaseLibMain.Logger.Debug($"Reward ext JSON deserialize failed: {ex.Message}");
             return null;
         }
         catch (NotSupportedException ex)
         {
-            BaseLibMain.Logger.Debug($"[BaseLib] Reward ext JSON deserialize not supported: {ex.Message}");
+            BaseLibMain.Logger.Debug($"Reward ext JSON deserialize not supported: {ex.Message}");
             return null;
         }
     }
@@ -228,7 +228,7 @@ public static class CombatRoomFromSerializableRewardExtPatch
             var removed = rewards.RemoveAll(r => r.RewardType == RewardType.None);
             if (removed > 0)
                 BaseLibMain.Logger.Warn(
-                    $"[BaseLib] Stripped {removed} RewardType.None entry(s) from ExtraRewards " +
+                    $"Stripped {removed} RewardType.None entry(s) from ExtraRewards " +
                     "(e.g. LinkedRewardSet) — serialization for this type is not supported.");
         }
     }
@@ -269,7 +269,7 @@ public static class RewardFromSerializableExtPatch
             }
 
             BaseLibMain.Logger.Warn(
-                "[BaseLib] Reward.FromSerializable: CustomCardPool had no resolvable cards, falling back.");
+                "Reward.FromSerializable: CustomCardPool had no resolvable cards, falling back.");
         }
 
         var pools = save.CardPoolIds
