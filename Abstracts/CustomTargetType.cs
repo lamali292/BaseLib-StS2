@@ -166,7 +166,7 @@ internal static class ModelDbTargetTypeInitPatch
                 .Where(e => e.IsAlive)
                 .Min(e => e.CurrentHp));
         CustomTargetType.RegisterMultiTargetType(CustomTargetType.AllHighestHpEnemies,
-            target => target is { IsAlive: true} &&
+            target => target is { IsAlive: true, IsEnemy: true} &&
                       target.CurrentHp == target.CombatState!.Enemies
             .Where(e => e.IsAlive)
             .Max(e => e.CurrentHp));
