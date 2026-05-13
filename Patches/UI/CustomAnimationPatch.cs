@@ -52,7 +52,7 @@ static class CustomAnimationPatch
     static bool UseCustomReviveAnim(NCreature __instance)
     {
         if (__instance.HasSpineAnimation) return true;
-
+        
         return !CustomAnimation.PlayCustomAnimation(__instance, "revive", "Revive");
     }
 
@@ -63,7 +63,7 @@ static class CustomAnimationPatch
         if (__instance.HasSpineAnimation) return true;
         
         BaseLibMain.Logger.Debug($"SetAnimationTrigger called for {trigger} on creature without spine animation");
-            
+        
         var animName = trigger switch
         {
             CreatureAnimator.idleTrigger => "idle",
@@ -73,7 +73,7 @@ static class CustomAnimationPatch
             CreatureAnimator.deathTrigger => "die",
             _ => trigger.ToLowerInvariant()
         };
-
+        
         return !CustomAnimation.PlayCustomAnimation(__instance, animName, trigger, trigger.ToLowerInvariant());
     }
 }
