@@ -67,10 +67,10 @@ public static partial class SimpleLoc
     [GeneratedRegex(@"!(.*?)!")] private static partial Regex DiffVariableRegex { get; }
     [GeneratedRegex(@"@(.*?)@")] private static partial Regex InverseVariableRegex { get; }
     
-    [GeneratedRegex(@"(?:(?:-(.+?)-)|(?:\+(.+?)\+))(?:\+(.+?)\+)?")] 
+    [GeneratedRegex(@"(?<=^|[^/])(?:(?:-(.+?)-)|(?:\+(.*?[^/])\+))(?:\+(.*?[^/])\+)?")] 
     private static partial Regex UpgradeSwapRegex { get; }
 
-    [GeneratedRegex(@"(.*?{)([^{]+?)((?::[^{]*)?}[^{]*?)\(([^()]+?)\)")]
+    [GeneratedRegex(@"(.*?{)([^{]+?)((?::[^{]*)?}(?:(?:[^{]*?[^{/])|(?:)))\(([^()]+?)\)")]
     private static partial Regex PluralizeRegex { get; }
     
     [GeneratedRegex(@"\[(?:(E\?)|(E+))\]")]
@@ -106,7 +106,9 @@ public static partial class SimpleLoc
         loc = InverseVariableRegex.Replace(loc, match => ReplaceVarName(match, ":inverseDiff()"));
         loc = EnergyIconsRegex.Replace(loc, MakeEnergyIcons);
         loc = PluralizeRegex.Replace(loc, "$1$2$3{$2:plural:|$4}"); //Plural first so that upgrade var is not considered
+        loc = loc.Replace("/(", "(");
         loc = UpgradeSwapRegex.Replace(loc, MakeUpgradeSwap);
+        loc = loc.Replace("/-", "-").Replace("/+", "+");
         
         BaseLibMain.Logger.Info($"SimplifiedLoc: {loc}");
             
