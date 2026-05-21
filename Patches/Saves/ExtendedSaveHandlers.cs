@@ -8,6 +8,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
+using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
@@ -211,12 +212,18 @@ public static class ExtendedSaveHandlers<DataType, SerializableType> where Seria
     }
 }
 
+/// <summary>
+/// Patches to handle addition of save data to MegaCritSerializerContext,
+/// and for serialization/deserialization
+/// </summary>
 public static class ExtendedSavePatches
 {
     public static void Patch(Harmony harmony)
     {
         AddContext<CardModel, SerializableCard>(harmony);
+        AddContext<RelicModel, SerializableRelic>(harmony);
         AddContext<PotionModel, SerializablePotion>(harmony);
+        AddContext<Reward, SerializableReward>(harmony);
         AddContext<Player, SerializablePlayer>(harmony);
     }
 
@@ -272,8 +279,7 @@ public static class ExtendedSavePatches
                         CodeInstruction.LoadArgument(0).WithLabels(labels), //SerializableCard
                         CodeInstruction.LoadLocal(0), //Creating card
                         CodeInstruction.Call(typeof(ExtendedSaveHandlers<CardModel, SerializableCard>), nameof(ExtendedSaveHandlers<CardModel, SerializableCard>.Load))
-                    ])
-                ;
+                    ]);
         }
     }
 
@@ -300,6 +306,64 @@ public static class ExtendedSavePatches
         {
             var extendedData = ExtendedSaveHandlers<CardModel, SerializableCard>.ExtendedData[__instance];
             foreach (var saveValue in ExtendedSaveHandlers<CardModel, SerializableCard>.RegisteredSaves)
+            {
+                saveValue.Deserializer(extendedData, reader);
+            }
+        }
+    }
+    
+    [HarmonyPatch(typeof(RelicModel), nameof(RelicModel.ToSerializable))]
+    static class PrepExtendedRelicData
+    {
+        [HarmonyPostfix]
+        static void ExtendedDataForRelic(RelicModel __instance, SerializableRelic __result)
+        {
+            var data = new ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedSaveData(__instance);
+            ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedData[__result] = data;
+        }
+    }
+
+    [HarmonyPatch(typeof(RelicModel), nameof(RelicModel.FromSerializable))]
+    static class LoadExtendedRelicData
+    {
+        [HarmonyTranspiler]
+        static List<CodeInstruction> InsertLoad(IEnumerable<CodeInstruction> code)
+        {
+            return new InstructionPatcher(code)
+                    .Match(new InstructionMatcher()
+                        .call(typeof(SavedProperties), nameof(SavedProperties.Fill)))
+                    .TakeLabels(out var labels)
+                    .Insert([
+                        CodeInstruction.LoadArgument(0).WithLabels(labels), //SerializableRelic
+                        CodeInstruction.LoadLocal(0), //Creating Relic
+                        CodeInstruction.Call(typeof(ExtendedSaveHandlers<RelicModel, SerializableRelic>), nameof(ExtendedSaveHandlers<RelicModel, SerializableRelic>.Load))
+                    ]);
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableRelic), nameof(SerializableRelic.Serialize))]
+    static class SerializeExtendedRelicData
+    {
+        [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableRelic
+        //Difference between basegame is not an issue as this serialization is only used for net communication, not saves
+        static void WriteExtended(SerializableRelic __instance, PacketWriter writer)
+        {
+            var extendedData = ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<RelicModel, SerializableRelic>.RegisteredSaves)
+            {
+                saveValue.Serializer(extendedData, writer);
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(SerializableRelic), nameof(SerializableRelic.Deserialize))]
+    static class DeserializeExtendedRelicData
+    {
+        [HarmonyPrefix] //Prefix instead of postfix due to inconsistent written length of SerializableRelic
+        static void ReadExtended(SerializableRelic __instance, PacketReader reader)
+        {
+            var extendedData = ExtendedSaveHandlers<RelicModel, SerializableRelic>.ExtendedData[__instance];
+            foreach (var saveValue in ExtendedSaveHandlers<RelicModel, SerializableRelic>.RegisteredSaves)
             {
                 saveValue.Deserializer(extendedData, reader);
             }

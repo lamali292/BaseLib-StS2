@@ -5,6 +5,7 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Serialization;
+using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Saves.Runs;
 
@@ -56,17 +57,33 @@ public class ExtendedSaveTypes
 
             return true;
         }
+        if (targetType.IsAssignableTo(typeof(RelicModel)))
+        {
+            ExtendedSaveHandlers<RelicModel, SerializableRelic>.RegisterSave<T>(id,
+                relic =>
+                {
+                    if (relic is not TargetType target) return default;
+                    return getter(target);
+                },
+                (relic, val) =>
+                {
+                    if (relic is not TargetType target) return;
+                    setter(target, val);
+                }, serializer, deserializer);
+
+            return true;
+        }
         if (targetType.IsAssignableTo(typeof(PotionModel)))
         {
             ExtendedSaveHandlers<PotionModel, SerializablePotion>.RegisterSave<T>(id,
-                card =>
+                potion =>
                 {
-                    if (card is not TargetType target) return default;
+                    if (potion is not TargetType target) return default;
                     return getter(target);
                 },
-                (card, val) =>
+                (potion, val) =>
                 {
-                    if (card is not TargetType target) return;
+                    if (potion is not TargetType target) return;
                     setter(target, val);
                 }, serializer, deserializer);
 
@@ -75,14 +92,30 @@ public class ExtendedSaveTypes
         if (targetType.IsAssignableTo(typeof(Player)))
         {
             ExtendedSaveHandlers<Player, SerializablePlayer>.RegisterSave<T>(id,
-                card =>
+                player =>
                 {
-                    if (card is not TargetType target) return default;
+                    if (player is not TargetType target) return default;
                     return getter(target);
                 },
-                (card, val) =>
+                (player, val) =>
                 {
-                    if (card is not TargetType target) return;
+                    if (player is not TargetType target) return;
+                    setter(target, val);
+                }, serializer, deserializer);
+
+            return true;
+        }
+        if (targetType.IsAssignableTo(typeof(Reward)))
+        {
+            ExtendedSaveHandlers<Reward, SerializableReward>.RegisterSave<T>(id,
+                reward =>
+                {
+                    if (reward is not TargetType target) return default;
+                    return getter(target);
+                },
+                (reward, val) =>
+                {
+                    if (reward is not TargetType target) return;
                     setter(target, val);
                 }, serializer, deserializer);
 
