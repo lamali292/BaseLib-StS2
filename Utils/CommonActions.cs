@@ -350,14 +350,14 @@ public static class CommonActions
         return await BetaMainCompatibility.PowerCmd_.Apply.InvokeGeneric<Task<T?>, T>
             (null, context, card.Owner.Creature, amount, card.Owner.Creature, card, silent)!;
     }
-
+    
+    
     /// <summary>
-    /// Opens a card selection screen where a specific number of cards must be selected and returns the selection result.
+    /// Opens a card selection screen with specific CardSelectorPrefs and returns the selection result.
     /// </summary>
     /// <returns></returns>
-    public static async Task<IEnumerable<CardModel>> SelectCards(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType, int count = 1)
+    public static async Task<IEnumerable<CardModel>> SelectCards(CardModel card, CardSelectorPrefs prefs, PlayerChoiceContext context, PileType pileType, Func<CardModel, bool>? filter = null)
     {
-        CardSelectorPrefs prefs = new(selectionPrompt, count);
         var pile = pileType.GetPile(card.Owner);
         var cards = pile.Cards;
         if (pile.Type == PileType.Draw)
@@ -367,45 +367,48 @@ public static class CommonActions
                 .ThenBy(c => c.Id)
                 .ToList();
         }
+        
+        if (pile.Type == PileType.Hand)
+        {
+            return await CardSelectCmd.FromHand(context, card.Owner, prefs, filter, card);
+        }
+
+        if (filter != null)
+        {
+            cards = cards.Where(filter).ToList();
+        }
+        
         return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
+    }
+
+    /// <summary>
+    /// Opens a card selection screen where a specific number of cards must be selected and returns the selection result.
+    /// </summary>
+    /// <returns></returns>
+    public static async Task<IEnumerable<CardModel>> SelectCards(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType, int count = 1, Func<CardModel, bool>? filter = null)
+    {
+        CardSelectorPrefs prefs = new(selectionPrompt, count);
+        return await SelectCards(card, prefs, context, pileType, filter);
     }
     
     /// <summary>
     /// Opens a card selection screen where a range of cards must be selected and returns the selection result.
     /// </summary>
     /// <returns></returns>
-    public static async Task<IEnumerable<CardModel>> SelectCards(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType, int minCount, int maxCount)
+    public static async Task<IEnumerable<CardModel>> SelectCards(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType, int minCount, int maxCount, Func<CardModel, bool>? filter = null)
     {
         CardSelectorPrefs prefs = new(selectionPrompt, minCount, maxCount);
-        var pile = pileType.GetPile(card.Owner);
-        var cards = pile.Cards;
-        if (pile.Type == PileType.Draw)
-        {
-            cards = cards
-                .OrderBy(c => c.Rarity)
-                .ThenBy(c => c.Id)
-                .ToList();
-        }
-        return await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs);
+        return await SelectCards(card, prefs, context, pileType, filter);
     }
 
     /// <summary>
     /// Opens a card selection screen selecting a single card and returns that single card (or null if no card could be selected).
     /// </summary>
     /// <returns></returns>
-    public static async Task<CardModel?> SelectSingleCard(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType)
+    public static async Task<CardModel?> SelectSingleCard(CardModel card, LocString selectionPrompt, PlayerChoiceContext context, PileType pileType, Func<CardModel, bool>? filter = null)
     {
         CardSelectorPrefs prefs = new(selectionPrompt, 1);
-        var pile = pileType.GetPile(card.Owner);
-        var cards = pile.Cards;
-        if (pile.Type == PileType.Draw)
-        {
-            cards = cards
-                .OrderBy(c => c.Rarity)
-                .ThenBy(c => c.Id)
-                .ToList();
-        }
-        return (await CardSelectCmd.FromSimpleGrid(context, cards, card.Owner, prefs)).FirstOrDefault();
+        return (await SelectCards(card, prefs, context, pileType, filter)).FirstOrDefault();
     }
     
     
