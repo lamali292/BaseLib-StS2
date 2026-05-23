@@ -21,9 +21,9 @@
         <PackageId>Alchyr.Sts2.BaseLib</PackageId>
         <Title>BaseLib-StS2</Title>
         <Description>Mod for Slay the Spire 2 providing utilities and features for other mods.</Description>
-        <Version>3.1.4</Version>
+        <Version>3.1.5</Version>
         <Authors>Alchyr</Authors>
-        <PackageReleaseNotes>beta compat, custom run save data, barebones card modifier, CustomModifierModel (run modifier), small fixes/adjustments, CustomLocTableManager.Register to load additional loc files</PackageReleaseNotes>
+        <PackageReleaseNotes>small fixes, add support for IRunState SavedSpireField, additions to CommonActions</PackageReleaseNotes>
         <PackageTags>c#</PackageTags>
         <NoWarn>$(NoWarn);NU5128;MSB3270</NoWarn>
 
