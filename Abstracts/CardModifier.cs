@@ -21,6 +21,16 @@ namespace BaseLib.Abstracts;
 /// </summary>
 public abstract class CardModifier : AbstractModel
 {
+    /// <summary>
+    /// Obtains a new instance of a CardModifier from ModelDb using <see cref="ModelDbExtensions.CardModifier"/>
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static T Get<T>() where T : CardModifier
+    {
+        return ModelDb.CardModifier<T>();
+    }
+    
     public static void RegisterSave()
     {
         ExtendedSaveTypes.RegisterListSaveType<ModifierSave>();
