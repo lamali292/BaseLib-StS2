@@ -6,12 +6,17 @@ using MegaCrit.Sts2.Core.Runs;
 namespace BaseLib.Hooks;
 
 /// <summary>
-/// Interface for models that should know when a card is downgraded
+/// Interface for models that should know when a card is downgraded.
 /// </summary>
 public interface IAfterCardDowngraded
 {
     /// <summary>
     /// Called after a card is downgraded.
+    /// Should not trigger gameplay effects; will also occur on card inspection screen.
+    /// If having gameplay effect is required, check that the card exists in a combat state or the player's deck,
+    /// depending on what you're doing.
+    /// <code>card == this</code> Will return false for the card displayed by
+    /// card inspection.
     /// </summary>
     void AfterCardDowngraded(CardModel card);
 
