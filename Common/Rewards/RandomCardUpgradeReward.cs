@@ -1,4 +1,5 @@
 using BaseLib.Abstracts;
+using BaseLib.Extensions;
 using BaseLib.Patches.Content;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Cards;
@@ -17,7 +18,7 @@ namespace BaseLib.Common.Rewards;
 /// </summary>
 public sealed class RandomCardUpgradeReward(Player player) : CustomReward(player)
 {
-    private static string RewardIcon => ImageHelper.GetImagePath("ui/reward_screen/reward_icon_card_upgrade_random.png");
+    private static string RewardIcon => ImageHelper.GetModImagePath("ui/reward_screen/reward_icon_card_upgrade_random.png");
     /// <inheritdoc/>
     protected override string IconPath => RewardIcon;
     // public static IEnumerable<string> AssetPaths => new List<string>([RewardIcon]);
