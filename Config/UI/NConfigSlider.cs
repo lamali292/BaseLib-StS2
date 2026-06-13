@@ -171,8 +171,7 @@ public partial class NConfigSlider : Control
     /// </summary>
     private static string ResolveDisplayFormat(ModConfig config, PropertyInfo property, string fallback)
     {
-        var locOverride = property.GetCustomAttribute<ConfigOverrideLocalizationAttribute>();
-        var keyName = locOverride?.OverridePropertyName ?? StringHelper.Slugify(property.Name);
+        var keyName = StringHelper.Slugify(property.Name);
         var loc = LocString.GetIfExists("settings_ui", $"{config.ModPrefix}{keyName}.sliderFormat");
         return loc?.GetRawText() ?? fallback;
     }
