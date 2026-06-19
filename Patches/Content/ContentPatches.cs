@@ -315,53 +315,30 @@ class CustomSharedEvents
 [HarmonyPatch(typeof(ModelDb), nameof(ModelDb.Acts), MethodType.Getter)]
 class ModelDbCustomActsPatch
 {
-    [HarmonyPostfix]
-    static IEnumerable<ActModel> AddCustomAncientForCompendium(IEnumerable<ActModel> __result)
+    [HarmonyTranspiler]
+    static List<CodeInstruction> AddCustomActs(IEnumerable<CodeInstruction> code)
     {
-        return [.. __result, .. CustomContentDictionary.CustomActs];
+        return new InstructionPatcher(code)
+            .Match(new InstructionMatcher()
+                .stsfld(typeof(ModelDb).DeclaredField("_acts")))
+            .InsertBeforeMatch([
+                CodeInstruction.Call(typeof(ModelDbCustomActsPatch), nameof(AddCustomActsSorted))
+            ]);
     }
-}
 
-// Generate the Act List including Custom Acts
-// This will have to be changed when they add more Acts to the base game
-[HarmonyPatch(typeof(ActModel), nameof(ActModel.GetRandomList))]
-public class ActModelGetRandomListPatch
-{
-    [HarmonyPostfix]
-    public static IEnumerable<ActModel> AdjustResult(IEnumerable<ActModel> __result, Rng rng, UnlockState unlockState, bool isMultiplayer)
+    static List<ActModel> AddCustomActsSorted(List<ActModel> original)
     {
-        bool unlockedDocks = unlockState.IsEpochRevealed<UnderdocksEpoch>();
-        bool forceDocks = !isMultiplayer && !SaveManager.Instance.Progress.DiscoveredActs.Contains(ModelDb.Act<Underdocks>().Id);
-        
-        if (CustomContentDictionary.CustomActs.Count == 0 || (unlockedDocks && forceDocks)) return __result;
-        
-        BaseLibMain.Logger.Info("Rolling with custom acts:");
+        BaseLibMain.Logger.Info($"Adding {CustomContentDictionary.CustomActs.Count} custom acts to act list.");
 
-        List<ActModel> newResult = new List<ActModel>(__result);
+        original.AddRange(CustomContentDictionary.CustomActs);
+        var result = original.OrderBy(act => act.Index)
+            .ThenByDescending(act => act.IsDefault)
+            .ThenBy(act => act.Id)
+            .ToList();
         
-        int[] baseActCounts = [2, 1, 1];
-        for (int i = 0; i < newResult.Count; ++i)
-        {
-            List<ActModel?> possible = [];
-            if (i < baseActCounts.Length)
-            {
-                possible.AddRange(new ActModel?[baseActCounts[i]]);
-            }
-            possible.AddRange(CustomContentDictionary.CustomActs.Where(act => act.ActNumber == (i + 1)));
+        BaseLibMain.Logger.Info($"Result: {result.AsReadable()}");
 
-            var replace = rng.NextItem(possible);
-            if (replace != null)
-            {
-                newResult[i] = replace;
-            }
-        }
-        
-        foreach (var actModel in newResult)
-        {
-            BaseLibMain.Logger.Info(actModel.Id.Entry);
-        }
-
-        return newResult;
+        return result;
     }
 }
 
