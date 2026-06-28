@@ -388,6 +388,19 @@ public abstract class CardModifier : AbstractModel, IComparable<CardModifier>
     {
         return Priority.CompareTo(other?.Priority ?? 0);
     }
+    
+    /// <summary>
+    /// Gives the clone its own <see cref="DynamicVars"/> instead of sharing the original's set.
+    /// </summary>
+    /// <remarks>
+    /// Must run after <see cref="Owner"/> is set to the clone, not in DeepCloneFields, where Card Owner
+    /// is still the original card.
+    /// </remarks>
+    internal void CloneDynamicVarsForClone()
+    {
+        if (_dynamicVars != null && Owner != null)
+            _dynamicVars = _dynamicVars.Clone(Owner);
+    }
 }
 
 [HarmonyPatch(typeof(AbstractModel), nameof(AbstractModel.MutableClone))]
@@ -401,6 +414,7 @@ static class CloneModifiers {
             {
                 var cloneModifier = (CardModifier) modifier.MutableClone();
                 resultCard.AddModifier(cloneModifier);
+                cloneModifier.CloneDynamicVarsForClone();
                 cloneModifier.AfterClonedOnCard(resultCard);
             }
         }
