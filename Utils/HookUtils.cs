@@ -6,7 +6,7 @@ using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
 
-namespace Downfall.DownfallCode.Events;
+namespace BaseLib.Utils;
 
 /// <summary>
 ///     Provides utility methods for dispatching and aggregating combat hook events
