@@ -119,7 +119,6 @@ public static class BaseLibCardSelectCmd
             if (cards.Count == 0) return;
 
             grid.SetCards(cards, pile.Type, [SortingOrders.Ascending]);
-            foreach (var card in screen._selectedCards.Where(cards.Contains)) grid.HighlightCard(card);
         }
     }
 }
